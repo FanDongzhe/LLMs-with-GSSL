@@ -1,4 +1,4 @@
-# LLMs-on-Graph
+# LLMs-with-GSSL
 
 # BGRL
 ADD folder prt_lm and dataset to ./BGRL
