@@ -1,0 +1,7 @@
+Namespace(batch_size=1024, dataset='arxiv', decode_channels=256, decode_layers=3, device=0, dropout=0.5, epochs=400, eval_steps=1, feature_type='ogb', hidden_channels=128, log_steps=1, lr=0.001, mask_ratio=0.8, mask_type='dm', num_layers=2, patience=50, runs=3, seed=42, use_sage='GCN', use_valedges_as_input=False)
+loading ogb dataset...
+Loading OGB features...
+### Input graph arxiv is directed
+Start training with mask ratio=0.8 # optimization edges=833616 / 1042020
+Run: 01, Epoch: 01, Best_epoch: 01, Best_valid: 99.53%, Loss: 0.5279, 
+***************

@@ -12,10 +12,10 @@ from graphmae.utils import (
     get_current_lr,
     load_best_configs,
 )
-from graphmae.datasets.data_util import load_dataset
+from graphmae.datasets.data_util import scale_feats
 from utils import to_dgl
-sys.path.append("../TAPE") # TODO merge TAPE into current repo
-from load_data import load_feature_and_data
+sys.path.append("..") # TODO merge TAPE into current repo
+from data_utils.load import load_llm_feature_and_data
 
 from graphmae.evaluation import node_classification_evaluation
 from graphmae.models import build_model
@@ -80,12 +80,15 @@ def main(args):
     use_scheduler = args.scheduler
 
 
-    features, data = load_feature_and_data(dataset_name=args.dataset,seed=seeds[0],lm_model_name='microsoft/deberta-base',
-                               feature_type=args.feature_type)
+    graph = load_llm_feature_and_data(dataset_name=args.dataset,LLM_feat_seed=seeds[0],lm_model_name='microsoft/deberta-base',
+                               feature_type=args.feature_type, use_dgl = True , device = args.device)
+    
+    graph.ndata['feat'] = scale_feats(graph.ndata['feat'].cpu()).to(args.device) # !the GraphMAE scaled feat 
+    features = graph.ndata['feat'] 
     
     # graph, (num_features, num_classes) = load_dataset(dataset_name)
     
-    (num_features, num_classes)= (features.shape[1],data.y.unique().size(0))
+    (num_features, num_classes)= (features.shape[1],graph.ndata['label'].unique().size(0))
     args.num_features = num_features
 
     acc_list = []
@@ -94,9 +97,8 @@ def main(args):
         print(f"####### Run {i} for seed {seed}")
         set_random_seed(seed)
 
-        features, data = load_feature_and_data(dataset_name=args.dataset,seed=seed%4,lm_model_name='microsoft/deberta-base',
-                                   feature_type=args.feature_type)
-        graph, (num_features, num_classes)= to_dgl(data),(data.x.shape[1],data.y.unique().size(0))
+
+        # graph, (num_features, num_classes)= to_dgl(data),(data.x.shape[1],data.y.unique().size(0))
 
         
         if logs:

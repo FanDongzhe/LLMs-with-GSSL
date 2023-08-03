@@ -23,8 +23,9 @@ import os.path as osp
 import concurrent.futures
 
 import sys
-sys.path.append("../TAPE") # TODO merge TAPE into current repo
-from load_data import load_feature_and_data
+sys.path.append("..") # TODO merge TAPE into current repo
+from data_utils.load import load_llm_feature_and_data
+
 from torch_geometric.utils.sparse import to_edge_index
 
 def random_edge_mask(args, edge_index, device, num_nodes):
@@ -222,12 +223,12 @@ def main():
     if args.dataset in {'arxiv', 'products', 'mag'}:
         print('loading ogb dataset...')
         # dataset = PygNodePropPredDataset(root=path, name=f'ogbn-{args.dataset}')
-        features, data = load_feature_and_data(
+        data = load_llm_feature_and_data(
             dataset_name = f'ogbn-{args.dataset}', 
-            seed=args.seed%4,
             lm_model_name='microsoft/deberta-base',
-            feature_type=args.feature_type)
-        
+            feature_type=args.feature_type,
+            device=args.device)
+
         if args.dataset in ['mag']:
             rel_data = dataset[0]
             # We are only interested in paper <-> paper relations.
@@ -241,11 +242,11 @@ def main():
             pass
 
     elif args.dataset in {'Cora', 'Citeseer', 'Pubmed'}:
-        features, data = load_feature_and_data(
+        data = load_llm_feature_and_data(
             dataset_name = args.dataset.lower(), 
-            seed=args.seed%4,
             lm_model_name='microsoft/deberta-base',
-            feature_type=args.feature_type)
+            feature_type=args.feature_type,
+            device=args.device)
         # dataset = Planetoid(path, args.dataset)
         # data = dataset[0]
 
