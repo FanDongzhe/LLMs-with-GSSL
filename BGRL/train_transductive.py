@@ -10,8 +10,13 @@ from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
+from torch_geometric.utils.sparse import to_edge_index
+
 from bgrl import *
 from bgrl import BGRL
+import sys
+sys.path.append("..") 
+from data_utils.load import load_llm_feature_and_data
 
 log = logging.getLogger(__name__)
 FLAGS = flags.FLAGS
@@ -24,6 +29,8 @@ flags.DEFINE_enum('dataset', 'cora',
                   ['cora',  'pubmed','ogbn-arxiv'],
                   'Which graph dataset to use.')
 flags.DEFINE_string('dataset_dir', './data', 'Where the dataset resides.')
+flags.DEFINE_string('feature_type', 'TA', 'LLM feature type')
+
 
 flags.DEFINE_float('k_shot', '5', 'number of samples per class for training')
 
@@ -33,6 +40,8 @@ flags.DEFINE_integer('predictor_hidden_size', 512, 'Hidden size of projector.')
 
 # Training hyperparameters.
 flags.DEFINE_integer('epochs', 1000, 'The number of training epochs.')
+flags.DEFINE_integer('device', 0, 'GPU index')
+
 flags.DEFINE_float('lr', 1e-5, 'The learning rate for model training.')
 flags.DEFINE_float('weight_decay', 1e-5, 'The value of the weight decay for training.')
 flags.DEFINE_float('mm', 0.99, 'The momentum for moving average.')
@@ -74,13 +83,21 @@ def main(argv):
 
 
     # load data
-    if FLAGS.dataset in ('cora', 'pubmed'):
-        #dataset, train_masks, val_masks, test_masks = get_dataset(FLAGS.dataset_dir, FLAGS)
-        dataset, train_masks, val_masks, test_masks = get_dataset_new(FLAGS.dataset_dir, FLAGS)
-        num_eval_splits = FLAGS.num_eval_splits
-    elif FLAGS.dataset == 'ogbn-arxiv':
-        dataset, train_masks, val_masks, test_masks = get_ogbn_arxiv(FLAGS.dataset_dir)
-        num_eval_splits = 1
+    
+    dataset = load_llm_feature_and_data(
+        dataset_name = FLAGS.dataset, 
+        lm_model_name='microsoft/deberta-base',
+        feature_type=FLAGS.feature_type,
+        device=FLAGS.device)
+    if FLAGS.dataset == 'ogbn-arxiv':
+        dataset.edge_index,_ = to_edge_index(dataset.edge_index)
+    # if FLAGS.dataset in ('cora', 'pubmed'):
+    #     #dataset, train_masks, val_masks, test_masks = get_dataset(FLAGS.dataset_dir, FLAGS)
+    #     dataset, train_masks, val_masks, test_masks = get_dataset_new(FLAGS.dataset_dir, FLAGS)
+    num_eval_splits = FLAGS.num_eval_splits if FLAGS.dataset in ('cora', 'pubmed') else 1
+    # elif FLAGS.dataset == 'ogbn-arxiv':
+    #     dataset, train_masks, val_masks, test_masks = get_ogbn_arxiv(FLAGS.dataset_dir)
+    #     num_eval_splits = 1
     data = dataset
     data = data.to(device)  # permanently move in gpy memory
 

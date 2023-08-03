@@ -28,7 +28,7 @@ def get_dataset_new(root, FLAG, transform=NormalizeFeatures()):
     assert FLAG.dataset in pyg_dataset_dict, "Dataset must be in {}".format(list(pyg_dataset_dict.keys()))
     data = load_data_new(FLAG.dataset,use_dgl=FLAG.use_dgl,use_text=FLAG.use_text,use_gpt=FLAG.use_gpt,seed=0)
     if FLAG.dataset == 'pubmed':
-        emb = emb2dataX('./prt_lm/pubmed/microsoft/deberta-base-seed0.emb')
+        emb = emb2dataX('../prt_lm/pubmed/microsoft/deberta-base-seed0.emb')
     data.x = emb
     train_mask,val_mask,test_mask = None,None,None
     return data,np.array(train_mask), np.array(val_mask), np.array(test_mask)

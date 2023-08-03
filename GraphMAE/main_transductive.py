@@ -14,7 +14,7 @@ from graphmae.utils import (
 )
 from graphmae.datasets.data_util import scale_feats
 from utils import to_dgl
-sys.path.append("..") # TODO merge TAPE into current repo
+sys.path.append("..") 
 from data_utils.load import load_llm_feature_and_data
 
 from graphmae.evaluation import node_classification_evaluation

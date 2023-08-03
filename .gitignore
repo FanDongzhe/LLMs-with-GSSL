@@ -1,8 +1,11 @@
 S2GAE/weight
 S2GAE/dataset
+BGRL/dataset
+
 S2GAE/prt_lm
 GraphMAE/dataset
 GraphMAE/prt_lm
+*.out
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

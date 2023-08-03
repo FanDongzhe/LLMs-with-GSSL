@@ -1,9 +1,6 @@
-for dataset in 'Cora' 'Pubmed' 'arxiv'; do
-    count=0
+for dataset in 'cora' 'pubmed' 'ogbn-arxiv'; do
     for feature_type  in 'ogb' 'TA' 'E'; do
-        ((count++))
-        export CUDA_VISIBLE_DEVICES=${count}  
-        python -u s2gae_nc_acc.py --dataset $dataset --feature_type $feature_type 2>&1 | tee ${dataset}_${feature_type}.out &
+        sh scripts/run_transductive.sh $dataset 0 $feature_type 2>&1 | tee out/${dataset}_${feature_type}.out 
     done
 done
 wait
