@@ -15,7 +15,7 @@ from sklearn.metrics import accuracy_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.model_selection import StratifiedKFold
-
+import json
 
 parser = argparse.ArgumentParser("My DGI")
 
@@ -95,9 +95,23 @@ def split_data(y, k_shot):
 
     return np.array(train_indices), np.array(val_indices), np.array(test_indices)
 
+def load_split(directory, split_name):
+    file_path = os.path.join(directory, f'{split_name}_split_idx.json')
+    with open(file_path, 'r') as f:
+        split_idx_json = json.load(f)
+
+    train_mask = np.array(split_idx_json['train'], dtype=bool)
+    val_mask = np.array(split_idx_json['valid'], dtype=bool)
+    test_mask = np.array(split_idx_json['test'], dtype=bool)
+
+    return train_mask, val_mask, test_mask
+
+if args.dataset in ('pubmed','cora','ogbn-arxiv'):
+    idx_train, idx_val, idx_test = load_split('mnt/datasplit', args.dataset)
+else:
+    idx_train, idx_val, idx_test = split_data(labels, args.k_shot)
 
 
-idx_train, idx_val, idx_test = split_data(labels, args.k_shot)
 
 '''
 ------------------------------------------------------------
