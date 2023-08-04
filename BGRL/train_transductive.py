@@ -9,9 +9,9 @@ from torch.nn.functional import cosine_similarity
 from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
-
+import numpy as np
 from torch_geometric.utils.sparse import to_edge_index
-
+import json
 from bgrl import *
 from bgrl import BGRL
 import sys
@@ -155,13 +155,33 @@ def main(argv):
         writer.add_scalar('params/mm', mm, step)
         writer.add_scalar('train/loss', loss, step)
 
+    def load_split(directory, split_name):
+        file_path = os.path.join(directory, f'{split_name}_split_idx.json')
+        with open(file_path, 'r') as f:
+            split_idx_json = json.load(f)
+
+        train_mask = np.array(split_idx_json['train'], dtype=bool)
+        val_mask = np.array(split_idx_json['valid'], dtype=bool)
+        test_mask = np.array(split_idx_json['test'], dtype=bool)
+
+        return train_mask, val_mask, test_mask
     def eval(epoch):
         # make temporary copy of encoder
         tmp_encoder = copy.deepcopy(model.online_encoder).eval()
         representations, labels = compute_representations(tmp_encoder, dataset, device)
 
         # evaluate
-        scores = fit_logistic_regression(representations.cpu().numpy(), labels.cpu().numpy(),FLAGS.k_shot)
+        if FLAGS.dataset in ('cora', 'pubmed', 'ogbn-arxiv'):
+            if FLAGS.dataset == 'ogbn-arxiv':
+                train_mask, val_mask, test_mask = load_split('mnt/datasplit', 'ogbn-arxiv')
+            elif FLAGS.dataset == 'cora':
+                train_mask, val_mask, test_mask = load_split('mnt/datasplit', 'cora')
+            elif FLAGS.dataset == 'pubmed':
+                train_mask, val_mask, test_mask = load_split('mnt/datasplit', 'pubmed')
+            scores = fit_logistic_regression_fixed_split(representations.cpu().numpy(), labels.cpu().numpy(), train_mask, val_mask, test_mask)
+        else:
+            scores = fit_logistic_regression(representations.cpu().numpy(), labels.cpu().numpy(),FLAGS.k_shot)
+
 
         for i, score in enumerate(scores):
             writer.add_scalar(f'accuracy/test_{i}', score, epoch)
