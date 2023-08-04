@@ -124,3 +124,7 @@ def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_f
         data = data.to(device)
         
         return data
+                                  
+def emb2dataX(emb_file_path):
+    emb = np.memmap(emb_file_path, mode='r', dtype=np.float16, shape=(19717, 768))
+    return torch.from_numpy(emb).to(torch.float32)
