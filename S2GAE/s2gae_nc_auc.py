@@ -18,10 +18,13 @@ from sklearn.metrics import roc_auc_score
 from utils import edgemask_um, edgemask_dm, do_edge_split_nc
 from sklearn.model_selection import KFold
 from sklearn.multiclass import OneVsRestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.svm import LinearSVC
+from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import GridSearchCV
 import os.path as osp
-
-
+import json
+from sklearn.metrics import accuracy_score
 def random_edge_mask(args, edge_index, device, num_nodes):
     num_edge = len(edge_index)
     index = np.arange(num_edge)
@@ -121,38 +124,118 @@ def accuracy(preds, labels):
     correct = correct.sum()
     return correct / len(labels)
 
+def split_data(y, k_shot):
+    num_classes = y.max() + 1
+    all_indices = np.arange(len(y))
 
-def test_classify(feature, labels):
+    num_val = int(len(all_indices) * 0.2)
+    num_test = int(len(all_indices) * 0.2)
+
+    val_indices = np.random.choice(all_indices, num_val, replace=False)
+    all_indices = np.setdiff1d(all_indices, val_indices)
+
+    test_indices = np.random.choice(all_indices, num_test, replace=False)
+    remaining_indices = np.setdiff1d(all_indices, test_indices)
+
+    train_indices = []
+
+    if k_shot >= 1:
+        k_shot = int(k_shot)
+        for i in range(num_classes):
+            class_indices = np.isin(remaining_indices, np.where(y == i)[0])
+            class_indices = remaining_indices[class_indices]
+            if len(class_indices) < k_shot:
+                raise ValueError(f"Not enough samples in class {i} for k-shot learning")
+            class_indices = np.random.choice(class_indices, k_shot, replace=False)
+            train_indices.extend(class_indices)
+    else:
+        num_train = int(len(y) * k_shot)  # Note: now k_shot is ratio of total samples, not remaining ones
+        if num_train > len(remaining_indices):
+            raise ValueError("Not enough remaining samples for train set with the given k_shot ratio")
+        train_indices = np.random.choice(remaining_indices, num_train, replace=False)
+
+    train_mask = np.isin(np.arange(len(y)), train_indices)
+    val_mask = np.isin(np.arange(len(y)), val_indices)
+    test_mask = np.isin(np.arange(len(y)), test_indices)
+
+    return train_mask, val_mask, test_mask
+
+def test_classify(feature, labels, k_shot):
     aucs = []
-    kf = KFold(n_splits=5, random_state=42, shuffle=True)
-    for train_index, test_index in kf.split(feature):
-        train_X, train_y = feature[train_index], labels[train_index]
-        test_X, test_y = feature[test_index], labels[test_index]
-        clf = OneVsRestClassifier(LinearSVC(random_state=0))
-        clf.fit(train_X, train_y)
-        preds = clf.predict(test_X)
+    train_index, val_index, test_index = split_data(labels, k_shot)
 
-        rocauc_list = []
+    train_X, train_y = feature[train_index], labels[train_index]
+    test_X, test_y = feature[test_index], labels[test_index]
 
-        for i in range(test_y.shape[1]):
+    logreg = LogisticRegression(solver='liblinear')
+    c = 2.0 ** np.arange(-10, 11)
+    # cv = ShuffleSplit(n_splits=5, test_size=0.5)
+    cv = StratifiedKFold(n_splits=2)
+
+
+    clf = GridSearchCV(estimator=OneVsRestClassifier(logreg), param_grid=dict(estimator__C=c),
+                       n_jobs=5, cv=cv, verbose=0)
+
+    clf.fit(train_X, train_y)
+    preds = clf.predict(test_X)
+
+    rocauc_list = []
+
+    for i in range(test_y.shape[1]):
             # AUC is only defined when there is at least one positive data.
-            if np.sum(test_y[:, i] == 1) > 0 and np.sum(test_y[:, i] == 0) > 0:
-                is_labeled = test_y[:, i] == test_y[:, i]
-                rocauc_list.append(roc_auc_score(test_y[is_labeled, i], preds[is_labeled, i]))
+        if np.sum(test_y[:, i] == 1) > 0 and np.sum(test_y[:, i] == 0) > 0:
+            is_labeled = test_y[:, i] == test_y[:, i]
+            rocauc_list.append(roc_auc_score(test_y[is_labeled, i], preds[is_labeled, i]))
 
-        if len(rocauc_list) == 0:
-            raise RuntimeError('No positively labeled data available. Cannot compute ROC-AUC.')
+    if len(rocauc_list) == 0:
+        raise RuntimeError('No positively labeled data available. Cannot compute ROC-AUC.')
 
-        auc = sum(rocauc_list) / len(rocauc_list)
+    auc = sum(rocauc_list) / len(rocauc_list)
 
-        aucs.append(auc)
+    aucs.append(auc)
 
     aucs = np.array(aucs)
     aucs = np.mean(aucs)
-    print('Testing based on svm: ',
+    print('Testing based on LR: ',
           'auc=%.4f' % aucs)
     return aucs
 
+def load_split(directory, split_name):
+    file_path = directory+ f'{split_name}_split_idx.json'
+    with open(file_path, 'r') as f:
+        split_idx_json = json.load(f)
+
+    train_mask = np.array(split_idx_json['train'], dtype=bool)
+    val_mask = np.array(split_idx_json['valid'], dtype=bool)
+    test_mask = np.array(split_idx_json['test'], dtype=bool)
+
+    return train_mask, val_mask, test_mask
+
+
+def test_classify_fixed_split(feature, labels, split_name):
+    aucs = []
+    train_index, val_index, test_index = load_split('mnt/datasplit/', split_name)
+    train_X, train_y = feature[train_index], labels[train_index]
+    test_X, test_y = feature[test_index], labels[test_index]
+
+    logreg = LogisticRegression(solver='liblinear')
+    c = 2.0 ** np.arange(-10, 11)
+    # cv = ShuffleSplit(n_splits=5, test_size=0.5)
+    cv = StratifiedKFold(n_splits=2)
+
+
+    clf = GridSearchCV(estimator=OneVsRestClassifier(logreg), param_grid=dict(estimator__C=c),
+                       n_jobs=5, cv=cv, verbose=0)
+
+    clf.fit(train_X, train_y)
+    preds = clf.predict(test_X)
+
+    acc = accuracy_score(test_y, preds)
+    aucs.append(acc * 100)
+
+    print('Testing based on LR: ',
+          'auc=%.4f' % aucs[0])
+    return aucs
 
 def main():
     parser = argparse.ArgumentParser(description='S2-GAE (GNN)')
@@ -295,11 +378,11 @@ def main():
         cnt_wait = 0
         for epoch in range(1, 1 + args.epochs):
             t1 = time.time()
-            loss = train(model, predictor, data, edge_index, optimizer,
-                         args)
+            #loss = train(model, predictor, data, edge_index, optimizer,
+            #             args)
             t2 = time.time()
-            auc_test = test(model, predictor, data, test_edge, test_edge_neg,
-                           args.batch_size)
+            #auc_test = test(model, predictor, data, test_edge, test_edge_neg,
+            #               args.batch_size)
 
             if auc_test > best_valid:
                 best_valid = auc_test
@@ -309,30 +392,34 @@ def main():
                 cnt_wait = 0
             else:
                 cnt_wait += 1
-
+            
             print(f'Run: {run + 1:02d}, '
                   f'Epoch: {epoch:02d}, '
                   f'Best_epoch: {best_epoch:02d}, '
                   f'Best_valid: {100 * best_valid:.2f}%, '
-                  f'Loss: {loss:.4f}, ')
+                  f'Loss: {1:.4f}, ')
             print('***************')
             if cnt_wait == 50:
                 print('Early stop at {}'.format(epoch))
                 break
-
+        
         print('##### Testing on {}/{}'.format(run, args.runs))
-
+           
         model.load_state_dict(torch.load(save_path_model))
         predictor.load_state_dict(torch.load(save_path_predictor))
+
         feature = model(data.x, data.full_adj_t)
         feature = [feature_.detach() for feature_ in feature]
 
         feature_list = extract_feature_list_layer2(feature)
 
         for i, feature_tmp in enumerate(feature_list):
-            auc_test = test_classify(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy())
+            if args.dataset in {'Cora', 'Pubmed','ogbn-arxiv'}:
+                auc_test = test_classify_fixed_split(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy(),args.dataset)
+            else:
+                auc_test = test_classify(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy())
             svm_result_final[run, i] = auc_test
-            print('**** SVM test acc on Run {}/{} for {} is acc={}'
+            print('**** Logistic Regression test acc on Run {}/{} for {} is acc={}'
                   .format(run + 1, args.runs, result_dict[i], auc_test))
 
     svm_result_final = np.array(svm_result_final)
