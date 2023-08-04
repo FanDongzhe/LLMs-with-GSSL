@@ -76,3 +76,37 @@ def fit_logistic_regression(X, y, k_shot):
     test_acc = metrics.accuracy_score(y_test, y_pred)
     accuracies.append(test_acc)
     return accuracies
+
+
+def fit_logistic_regression_fixed_split(X, y, train_mask, val_mask, test_mask):
+    one_hot_encoder = OneHotEncoder(categories='auto', sparse=False)
+
+    y_one_hot = one_hot_encoder.fit_transform(y.reshape(-1, 1)).astype(bool)
+
+    X = normalize(X, norm='l2')
+
+    accuracies = []
+
+    X_train, y_train = X[train_mask], y_one_hot[train_mask]
+    X_val, y_val = X[val_mask], y_one_hot[val_mask]
+    X_test, y_test = X[test_mask], y_one_hot[test_mask]
+
+    logreg = LogisticRegression(solver='liblinear')
+    c = 2.0 ** np.arange(-10, 11)
+    # cv = ShuffleSplit(n_splits=5, test_size=0.5)
+    cv = StratifiedKFold(n_splits=2)
+
+    clf = GridSearchCV(estimator=OneVsRestClassifier(logreg), param_grid=dict(estimator__C=c),
+                       n_jobs=5, cv=cv, verbose=0)
+
+    # clf.fit(X_train, y_train)
+    y_train_labels = np.argmax(y_train, axis=1)
+    clf.fit(X_train, y_train_labels)
+
+    y_pred = clf.predict_proba(X_test)
+    y_pred = np.argmax(y_pred, axis=1)
+    y_pred = one_hot_encoder.transform(y_pred.reshape(-1, 1)).astype(bool)
+
+    test_acc = metrics.accuracy_score(y_test, y_pred)
+    accuracies.append(test_acc)
+    return accuracies
