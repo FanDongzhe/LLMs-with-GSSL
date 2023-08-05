@@ -4,7 +4,15 @@ import torch
 import csv
 import numpy as np 
 from data_utils.dataset import CustomDGLDataset
+from sklearn.preprocessing import StandardScaler
 
+
+def scale_feats(x):
+    scaler = StandardScaler()
+    feats = x.numpy()
+    scaler.fit(feats)
+    feats = torch.from_numpy(scaler.transform(feats)).float()
+    return feats
 
 def load_gpt_preds(dataset, topk):
     preds = []
@@ -59,7 +67,7 @@ def load_data(dataset, use_dgl=False, use_text=False, use_gpt=False, seed=0):
     return data, text
 
 def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_feat_seed = 0, lm_model_name="microsoft/deberta-base",
-                              device = 0):
+                              device = 0 , sclae_feat = False):
         '''
         args:
             feature_type: TA or E or P 
@@ -75,15 +83,22 @@ def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_f
         # ! Load data from ogb
         data = load_data(dataset_name, use_dgl=use_dgl,
                          use_text=False)
-
+        
         if  use_dgl:
             data=data[0]
             num_nodes = data.num_nodes()
             data.x = data.ndata['feat'] # ref https://github.com/XiaoxinHe/TAPE/blob/241c93b735dcebbe2853414395c1559d5c2ce202/core/GNNs/dgl_gnn_trainer.py#L39C8-L39C8
+            data = data.add_self_loop() # ! add self loop for pyg\dgl data 
         else:
             num_nodes = data.x.shape[0]
             num_classes = data.y.unique().size(0)
             data.y = data.y.squeeze()
+            data = data.add_self_loops() # ! add self loop for pyg\dgl data 
+            
+        if sclae_feat:
+            assert feature_type == 'ogb', "only scale original feature for graphMAE"
+            data.x = scale_feats(data.x) # !the GraphMAE scaled feat '
+
 
         # ! Init gnn feature
         topk = 3 if dataset_name == 'pubmed' else 5

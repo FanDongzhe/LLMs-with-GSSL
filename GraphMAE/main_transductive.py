@@ -81,9 +81,13 @@ def main(args):
 
 
     graph = load_llm_feature_and_data(dataset_name=args.dataset,LLM_feat_seed=seeds[0],lm_model_name='microsoft/deberta-base',
-                               feature_type=args.feature_type, use_dgl = True , device = args.device)
-    
-    graph.ndata['feat'] = scale_feats(graph.ndata['feat'].cpu()).to(args.device) # !the GraphMAE scaled feat 
+                               feature_type=args.feature_type, use_dgl = True , device = args.device , 
+                               sclae_feat= True if dataset_name == "ogbn-arxiv" else False )
+    # if dataset_name != "ogbn-arxiv":
+    #     graph = graph.remove_self_loop()
+    #     graph = graph.add_self_loop()
+
+        
     features = graph.ndata['feat'] 
     
     # graph, (num_features, num_classes) = load_dataset(dataset_name)

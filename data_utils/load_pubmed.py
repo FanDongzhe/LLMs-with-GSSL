@@ -22,13 +22,13 @@ def get_pubmed_casestudy(corrected=False, SEED=0):
     random.seed(SEED)  # Python random module.
 
     # load data
-    data_name = 'PubMed'
+    data_name = 'PubMed'  
     # path = osp.join(osp.dirname(osp.realpath(__file__)), 'dataset')
     dataset = Planetoid('dataset', data_name, transform=T.NormalizeFeatures())
     data = dataset[0]
 
     # replace dataset matrices with the PubMed-Diabetes data, for which we have the original pubmed IDs
-    data.x = torch.tensor(data_X)
+    data.x = torch.tensor(data_X) # load from LLM 
     data.edge_index = torch.tensor(data_edges)
     data.y = torch.tensor(data_Y)
 
