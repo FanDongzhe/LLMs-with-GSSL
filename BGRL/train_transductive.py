@@ -155,16 +155,6 @@ def main(argv):
         writer.add_scalar('params/mm', mm, step)
         writer.add_scalar('train/loss', loss, step)
 
-    def load_split(directory, split_name):
-        file_path = os.path.join(directory, f'{split_name}_split_idx.json')
-        with open(file_path, 'r') as f:
-            split_idx_json = json.load(f)
-
-        train_mask = np.array(split_idx_json['train'], dtype=bool)
-        val_mask = np.array(split_idx_json['valid'], dtype=bool)
-        test_mask = np.array(split_idx_json['test'], dtype=bool)
-
-        return train_mask, val_mask, test_mask
     def eval(epoch):
         # make temporary copy of encoder
         tmp_encoder = copy.deepcopy(model.online_encoder).eval()
