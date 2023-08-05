@@ -17,6 +17,7 @@ from bgrl import BGRL
 import sys
 sys.path.append("..") 
 from data_utils.load import load_llm_feature_and_data
+from data_utils import logistic_regression_eval as eval
 
 log = logging.getLogger(__name__)
 FLAGS = flags.FLAGS
@@ -161,7 +162,7 @@ def main(argv):
         representations, labels = compute_representations(tmp_encoder, dataset, device)
 
         # evaluate
-        scores = fit_logistic_regression(representations.cpu().numpy(), labels.cpu().numpy(),FLAGS.dataset,1)
+        scores = eval.fit_logistic_regression(representations.cpu().numpy(), labels.cpu().numpy(),FLAGS.dataset,1)
 
 
         for i, score in enumerate(scores):
