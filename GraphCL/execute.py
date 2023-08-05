@@ -60,56 +60,7 @@ nonlinearity = 'prelu' # special name to separate parameters
 adj, features, labels, idx_train, idx_val, idx_test,nb_nodes,ft_size = process.load_data_new(dataset)
 
 features = process.preprocess_features(features)
-features = torch.FloatTensor(features[np.newaxis])
-
-
-def split_data(y, k_shot):
-    num_classes = y.shape[1]
-    all_indices = np.arange(y.shape[0])
-
-    num_val = int(y.shape[0] * 0.2)
-    num_test = int(y.shape[0] * 0.2)
-
-    val_indices = np.random.choice(all_indices, num_val, replace=False)
-    all_indices = np.setdiff1d(all_indices, val_indices)
-
-    test_indices = np.random.choice(all_indices, num_test, replace=False)
-    remaining_indices = np.setdiff1d(all_indices, test_indices)
-
-    train_indices = []
-
-    if k_shot >= 1:
-        k_shot = int(k_shot)
-        for i in range(num_classes):
-            class_indices = np.where(y[:, i] == 1)[0]
-            class_indices = np.intersect1d(class_indices, remaining_indices)
-            if len(class_indices) < k_shot:
-                raise ValueError(f"Not enough samples in class {i} for k-shot learning")
-            class_indices = np.random.choice(class_indices, k_shot, replace=False)
-            train_indices.extend(class_indices)
-    else:
-        num_train = int(y.shape[0] * k_shot)
-        if num_train > len(remaining_indices):
-            raise ValueError("Not enough remaining samples for train set with the given k_shot ratio")
-        train_indices = np.random.choice(remaining_indices, num_train, replace=False)
-
-    return np.array(train_indices), np.array(val_indices), np.array(test_indices)
-
-def load_split(directory, split_name):
-    file_path = os.path.join(directory, f'{split_name}_split_idx.json')
-    with open(file_path, 'r') as f:
-        split_idx_json = json.load(f)
-
-    train_mask = np.array(split_idx_json['train'], dtype=bool)
-    val_mask = np.array(split_idx_json['valid'], dtype=bool)
-    test_mask = np.array(split_idx_json['test'], dtype=bool)
-
-    return train_mask, val_mask, test_mask
-
-if args.dataset in ('pubmed','cora','ogbn-arxiv'):
-    idx_train, idx_val, idx_test = load_split('mnt/datasplit', args.dataset)
-else:
-    idx_train, idx_val, idx_test = split_data(labels, args.k_shot)
+#features = torch.FloatTensor(features[np.newaxis])
 
 
 
@@ -263,37 +214,11 @@ print('Loading {}th epoch'.format(best_t))
 model.load_state_dict(torch.load(args.save_name))
 
 embeds, _ = model.embed(features, sp_adj if sparse else adj, sparse, None)
-train_embs = embeds[0, idx_train].cpu().numpy()
-val_embs = embeds[0, idx_val].cpu().numpy()
-test_embs = embeds[0, idx_test].cpu().numpy()
-
-train_lbls = torch.argmax(labels[0, idx_train], dim=1).cpu().numpy()
-val_lbls = torch.argmax(labels[0, idx_val], dim=1).cpu().numpy()
-test_lbls = torch.argmax(labels[0, idx_test], dim=1).cpu().numpy()
-
-tot = torch.zeros(1)
-tot = tot
-
 accs = []
+accs = eval.fit_logistic_regression(embeds[0,].cpu().numpy(),labels_eavl,args.dataset)
 
-
-# Grid search with one-vs-rest classifiers
-logreg = LogisticRegression(solver='liblinear')
-c = 2.0 ** np.arange(-10, 11)
-cv = StratifiedKFold(n_splits=2)
-#cv = ShuffleSplit(n_splits=5, test_size=0.5)
-clf = GridSearchCV(estimator=OneVsRestClassifier(logreg), param_grid=dict(estimator__C=c),
-                       n_jobs=5, cv=cv, verbose=0)
-clf.fit(train_embs, train_lbls)
-
-pred = clf.predict_proba(test_embs)
-pred = np.argmax(pred, axis=1)
-
-acc = accuracy_score(test_lbls, pred)
-accs.append(acc * 100)
-
-print('-' * 100)
-print('acc:[{:.4f}]'.format(acc))
-print('-' * 100)
+#打印accs数组的均值和方差
+print('Test acc:[{:.4f}]'.format(np.mean(accs)))
+print('Test std:[{:.4f}]'.format(np.std(accs)))
 
 
