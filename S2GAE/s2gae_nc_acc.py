@@ -363,6 +363,14 @@ def main():
             svm_result_final[run, i] = acc_svm
             print('**** SVM test acc on Run {}/{} for {} is F1-mic={} F1-mac={} acc={}'
                   .format(run + 1, args.runs, result_dict[i], f1_mic_svm, f1_mac_svm, acc_svm))
+            '''
+            #这部分需要测试一下，保证输入的feature_tmp是一个二维numpy数组，labels是一个一维numpy数组（而不是one hot编码）
+            accs = eval.fit_logistic_regression(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy(),
+                                                    args.dataset)
+            #打印accs数组的均值和方差
+            print('Test acc:[{:.4f}]'.format(np.mean(accs)))
+            print('Test std:[{:.4f}]'.format(np.std(accs)))                                        
+            '''
 
     svm_result_final = np.array(svm_result_final)
 
