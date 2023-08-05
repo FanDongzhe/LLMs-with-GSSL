@@ -49,7 +49,7 @@ def fit_logistic_regression(X, y, dataset_name,data_random_seed=1,repeat=1):
 
     accuracies = []
     for _ in range(repeat):
-        if dataset_name in ('cora','pubmed'):
+        if dataset_name in ('Cora','Pubmed','cora','pubmed'):
             train_mask, val_mask, test_mask = split_data_k(y, k_shot=20)
             X_train, y_train = X[train_mask], y_one_hot[train_mask]
             X_val, y_val = X[val_mask], y_one_hot[val_mask]
