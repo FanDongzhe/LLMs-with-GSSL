@@ -171,16 +171,7 @@ def main(argv):
         representations, labels = compute_representations(tmp_encoder, dataset, device)
 
         # evaluate
-        if FLAGS.dataset in ('cora', 'pubmed', 'ogbn-arxiv'):
-            if FLAGS.dataset == 'ogbn-arxiv':
-                train_mask, val_mask, test_mask = load_split('mnt/datasplit', 'ogbn-arxiv')
-            elif FLAGS.dataset == 'cora':
-                train_mask, val_mask, test_mask = load_split('mnt/datasplit', 'cora')
-            elif FLAGS.dataset == 'pubmed':
-                train_mask, val_mask, test_mask = load_split('mnt/datasplit', 'pubmed')
-            scores = fit_logistic_regression_fixed_split(representations.cpu().numpy(), labels.cpu().numpy(), train_mask, val_mask, test_mask)
-        else:
-            scores = fit_logistic_regression(representations.cpu().numpy(), labels.cpu().numpy(),FLAGS.k_shot)
+        scores = fit_logistic_regression(representations.cpu().numpy(), labels.cpu().numpy(),FLAGS.dataset,1)
 
 
         for i, score in enumerate(scores):
