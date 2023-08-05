@@ -25,7 +25,7 @@ import concurrent.futures
 import sys
 sys.path.append("..") # TODO merge TAPE into current repo
 from data_utils.load import load_llm_feature_and_data
-
+from logistic_regression_eval import fit_logistic_regression
 from torch_geometric.utils.sparse import to_edge_index
 
 def random_edge_mask(args, edge_index, device, num_nodes):
@@ -357,20 +357,23 @@ def main():
 
         feature_list = extract_feature_list_layer2(feature)
 
+        final_acc=[]
+        
         for i, feature_tmp in enumerate(feature_list):
-            f1_mic_svm, f1_mac_svm, acc_svm = test_classify(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy(),
-                                                            args)
-            svm_result_final[run, i] = acc_svm
-            print('**** SVM test acc on Run {}/{} for {} is F1-mic={} F1-mac={} acc={}'
-                  .format(run + 1, args.runs, result_dict[i], f1_mic_svm, f1_mac_svm, acc_svm))
-            '''
+            # f1_mic_svm, f1_mac_svm, acc_svm = test_classify(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy(),
+            #                                                 args)
+            # svm_result_final[run, i] = acc_svm
+            # print('**** SVM test acc on Run {}/{} for {} is F1-mic={} F1-mac={} acc={}'
+            #       .format(run + 1, args.runs, result_dict[i], f1_mic_svm, f1_mac_svm, acc_svm))
+            
             #这部分需要测试一下，保证输入的feature_tmp是一个二维numpy数组，labels是一个一维numpy数组（而不是one hot编码）
-            accs = eval.fit_logistic_regression(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy(),
+            accs =  fit_logistic_regression(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy(),
                                                     args.dataset)
+            final_acc.append(accs)
             #打印accs数组的均值和方差
-            print('Test acc:[{:.4f}]'.format(np.mean(accs)))
-            print('Test std:[{:.4f}]'.format(np.std(accs)))                                        
-            '''
+        print('Test acc:[{:.4f}]'.format(np.mean(final_acc)))
+        print('Test std:[{:.4f}]'.format(np.std(final_acc)))                                        
+            
 
     svm_result_final = np.array(svm_result_final)
 

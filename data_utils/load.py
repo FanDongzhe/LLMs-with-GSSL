@@ -5,7 +5,7 @@ import csv
 import numpy as np 
 from data_utils.dataset import CustomDGLDataset
 from sklearn.preprocessing import StandardScaler
-
+from torch_geometric.utils import add_self_loops,remove_self_loops
 
 def scale_feats(x):
     scaler = StandardScaler()
@@ -93,7 +93,8 @@ def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_f
             num_nodes = data.x.shape[0]
             num_classes = data.y.unique().size(0)
             data.y = data.y.squeeze()
-            data = data.add_self_loops() # ! add self loop for pyg\dgl data 
+            edge_index, _ = remove_self_loops(data.edge_index)
+            data.edge_index,_ = add_self_loops(edge_index)# ! add self loop for pyg\dgl data 
             
         if sclae_feat:
             assert feature_type == 'ogb', "only scale original feature for graphMAE"
