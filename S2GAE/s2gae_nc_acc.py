@@ -25,8 +25,9 @@ import concurrent.futures
 import sys
 sys.path.append("..") # TODO merge TAPE into current repo
 from data_utils.load import load_llm_feature_and_data
-from logistic_regression_eval import fit_logistic_regression
 from torch_geometric.utils.sparse import to_edge_index
+import data_utils.logistic_regression_eval as eval
+
 
 def random_edge_mask(args, edge_index, device, num_nodes):
     num_edge = len(edge_index)
@@ -367,7 +368,7 @@ def main():
             #       .format(run + 1, args.runs, result_dict[i], f1_mic_svm, f1_mac_svm, acc_svm))
             
             #这部分需要测试一下，保证输入的feature_tmp是一个二维numpy数组，labels是一个一维numpy数组（而不是one hot编码）
-            accs =  fit_logistic_regression(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy(),
+            accs =  eval.fit_logistic_regression(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy(),
                                                     args.dataset)
             final_acc.append(accs)
             #打印accs数组的均值和方差
