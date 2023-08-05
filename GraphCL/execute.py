@@ -62,6 +62,10 @@ adj, features, labels, idx_train, idx_val, idx_test,nb_nodes,ft_size = process.l
 features = process.preprocess_features(features)
 #features = torch.FloatTensor(features[np.newaxis])
 
+def one_hot_to_label(one_hot_encoding):
+    return np.argmax(one_hot_encoding, axis=1)
+labels_eavl = one_hot_to_label(labels)
+
 
 
 '''
