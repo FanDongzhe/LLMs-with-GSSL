@@ -10,30 +10,26 @@ from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import numpy as np
-from torch_geometric.utils.sparse import to_edge_index
+#from torch_geometric.utils.sparse import to_edge_index
 import json
 from bgrl import *
 from bgrl import BGRL
 import sys
-sys.path.append("..") 
+sys.path.append("..")
 from data_utils.load import load_llm_feature_and_data
-from data_utils import logistic_regression_eval as eval
-
+from data_utils.logistic_regression_eval import fit_logistic_regression
 log = logging.getLogger(__name__)
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('model_seed', None, 'Random seed used for model initialization and training.')
-flags.DEFINE_integer('data_seed', 1, 'Random seed used to generate train/val/test split.')
-flags.DEFINE_integer('num_eval_splits', 1, 'Number of different train/test splits the model will be evaluated over.')
+flags.DEFINE_multi_integer('data_seeds', [0,1], 'Random seed used to generate train/val/test split.')
+#flags.DEFINE_integer('num_eval_splits', 2, 'Number of different train/test splits the model will be evaluated over.')
 
 # Dataset.
 flags.DEFINE_enum('dataset', 'cora',
-                  ['cora',  'pubmed','ogbn-arxiv'],
+                  ['cora',  'pubmed','ogbn-arxiv','amazon-photo'],
                   'Which graph dataset to use.')
 flags.DEFINE_string('dataset_dir', './data', 'Where the dataset resides.')
 flags.DEFINE_string('feature_type', 'TA', 'LLM feature type')
-
-
-flags.DEFINE_float('k_shot', '5', 'number of samples per class for training')
 
 # Architecture.
 flags.DEFINE_multi_integer('graph_encoder_layer', None, 'Conv layer sizes.')
@@ -90,15 +86,10 @@ def main(argv):
         lm_model_name='microsoft/deberta-base',
         feature_type=FLAGS.feature_type,
         device=FLAGS.device)
-    if FLAGS.dataset == 'ogbn-arxiv':
-        dataset.edge_index,_ = to_edge_index(dataset.edge_index)
-    # if FLAGS.dataset in ('cora', 'pubmed'):
-    #     #dataset, train_masks, val_masks, test_masks = get_dataset(FLAGS.dataset_dir, FLAGS)
-    #     dataset, train_masks, val_masks, test_masks = get_dataset_new(FLAGS.dataset_dir, FLAGS)
-    num_eval_splits = FLAGS.num_eval_splits if FLAGS.dataset in ('cora', 'pubmed') else 1
-    # elif FLAGS.dataset == 'ogbn-arxiv':
-    #     dataset, train_masks, val_masks, test_masks = get_ogbn_arxiv(FLAGS.dataset_dir)
-    #     num_eval_splits = 1
+    #if FLAGS.dataset == 'ogbn-arxiv':
+        #dataset.edge_index,_ = to_edge_index(dataset.edge_index)
+
+    #num_eval_splits = FLAGS.num_eval_splits if FLAGS.dataset in ('cora', 'pubmed') else 1
     data = dataset
     data = data.to(device)  # permanently move in gpy memory
 
@@ -121,8 +112,8 @@ def main(argv):
 
     # setup tensorboard and make custom layout
     writer = SummaryWriter(FLAGS.logdir)
-    layout = {'accuracy': {'accuracy/test': ['Multiline', [f'accuracy/test_{i}' for i in range(num_eval_splits)]]}}
-    writer.add_custom_scalars(layout)
+    #layout = {'accuracy': {'accuracy/test': ['Multiline', [f'accuracy/test_{i}' for i in range(num_eval_splits)]]}}
+    #writer.add_custom_scalars(layout)
 
     def train(step):
         model.train()
@@ -162,12 +153,12 @@ def main(argv):
         representations, labels = compute_representations(tmp_encoder, dataset, device)
 
         # evaluate
-        scores = eval.fit_logistic_regression(representations.cpu().numpy(), labels.cpu().numpy(),FLAGS.dataset,1)
-
+        scores = fit_logistic_regression(representations.cpu().numpy(), labels.cpu().numpy(),FLAGS.dataset, data_random_seeds = FLAGS.data_seeds)
 
         for i, score in enumerate(scores):
             writer.add_scalar(f'accuracy/test_{i}', score, epoch)
-            print(f'Score {i}: {score}')
+            #print(f'Score {i}: {score}')
+        return scores
     for epoch in tqdm(range(1, FLAGS.epochs + 1)):
         train(epoch-1)
         if epoch % FLAGS.eval_epochs == 0:
@@ -175,10 +166,25 @@ def main(argv):
 
     # save encoder weights
     torch.save({'model': model.online_encoder.state_dict()}, os.path.join(FLAGS.logdir, f'{FLAGS.dataset}.pt'))
+    final_scores = eval(99999)
+    print(final_scores)
+    mean_score = np.mean(final_scores)
+    std_score = np.std(final_scores)
 
+    # Ensure the directory exists
+    os.makedirs(FLAGS.logdir, exist_ok=True)
+
+    filename = f"final_score.txt"
+    with open(os.path.join(FLAGS.logdir, filename), 'w') as f:
+        f.write(f"Mean: {mean_score}\n")
+        f.write(f"Standard Deviation: {std_score}\n")
+    print(f"Final Score - Mean: {mean_score}, Standard Deviation: {std_score}")
+
+    #return final_score
     #torch.save({'model': model.online_encoder.state_dict()}, os.path.join(FLAGS.logdir, 'Cora.pt'))
 
 
 if __name__ == "__main__":
     log.info('PyTorch version: %s' % torch.__version__)
     app.run(main)
+
