@@ -41,7 +41,7 @@ def get_current_lr(optimizer):
 
 def build_args():
     parser = argparse.ArgumentParser(description="GAT")
-    parser.add_argument("--seeds", type=int, nargs="+", default=[0])
+    #parser.add_argument("--seeds", type=int, nargs="+", default=[0])
     parser.add_argument("--dataset", type=str, default="cora")
     parser.add_argument("--device", type=int, default=-1)
     parser.add_argument("--max_epoch", type=int, default=200,
@@ -98,6 +98,9 @@ def build_args():
     parser.add_argument("--batch_size", type=int, default=32)
     
     parser.add_argument("--feature_type", type=str, default="TA")
+
+    parser.add_argument("--logdir", type=str, default="runs/cora")
+    parser.add_argument("--seeds", type=list, default=[0,1])
     
     args = parser.parse_args()
     return args
