@@ -6,12 +6,12 @@ import torch.nn as nn
 from graphmae.utils import create_optimizer, accuracy
 
 
-def node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f, max_epoch_f, device, dataset_name, mute=False):
+def node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f, max_epoch_f, device, dataset_name, data_random_seeds,mute=False):
     model.eval()
     accs = []
     with torch.no_grad():
         x = model.embed(graph.to(device), x.to(device))
-        accs = eval.fit_logistic_regression(x, graph.ndata["label"],dataset_name=dataset_name)
+        accs = eval.fit_logistic_regression(x, graph.ndata["label"],dataset_name=dataset_name,data_random_seeds=data_random_seeds)
     return accs
 
 
