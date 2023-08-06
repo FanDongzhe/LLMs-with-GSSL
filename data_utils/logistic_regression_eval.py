@@ -7,7 +7,8 @@ from sklearn.preprocessing import OneHotEncoder, normalize
 from sklearn.model_selection import StratifiedKFold
 
 
-def split_data_k(y, k_shot=20):
+def split_data_k(y, k_shot=20,data_random_seed=0):
+    np.random.seed(data_random_seed)
     num_classes = y.max() + 1
     all_indices = np.arange(len(y))
 
@@ -40,7 +41,7 @@ def split_data_k(y, k_shot=20):
 
     return train_mask, val_mask, test_mask
 
-def fit_logistic_regression(X, y, dataset_name,data_random_seed=1,repeat=1):
+def fit_logistic_regression(X, y, dataset_name,data_random_seeds):
     one_hot_encoder = OneHotEncoder(categories='auto', sparse=False)
 
     y_one_hot = one_hot_encoder.fit_transform(y.reshape(-1, 1)).astype(bool)
@@ -48,16 +49,16 @@ def fit_logistic_regression(X, y, dataset_name,data_random_seed=1,repeat=1):
     X = normalize(X, norm='l2')
 
     accuracies = []
-    for _ in range(repeat):
+    for data_random_seed in data_random_seeds:
         if dataset_name in ('Cora','Pubmed','cora','pubmed'):
-            train_mask, val_mask, test_mask = split_data_k(y, k_shot=20)
+            train_mask, val_mask, test_mask = split_data_k(y, k_shot=20,data_random_seed=data_random_seed)
             X_train, y_train = X[train_mask], y_one_hot[train_mask]
             X_val, y_val = X[val_mask], y_one_hot[val_mask]
             X_test, y_test = X[test_mask], y_one_hot[test_mask]
         else:
             rng = np.random.RandomState(data_random_seed)  # this will ensure the dataset will be split exactly the same
             # throughout training
-            # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.8, random_state=rng)
+            #X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.8, random_state=rng)
             X_train, X_test, y_train, y_test = train_test_split(X, y_one_hot, test_size=0.8, random_state=rng)
 
         logreg = LogisticRegression(solver='liblinear')
