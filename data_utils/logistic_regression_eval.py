@@ -57,7 +57,8 @@ def fit_logistic_regression(X, y, dataset_name,data_random_seed=1,repeat=1):
         else:
             rng = np.random.RandomState(data_random_seed)  # this will ensure the dataset will be split exactly the same
             # throughout training
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.8, random_state=rng)
+            # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.8, random_state=rng)
+            X_train, X_test, y_train, y_test = train_test_split(X, y_one_hot, test_size=0.8, random_state=rng)
 
         logreg = LogisticRegression(solver='liblinear')
         c = 2.0 ** np.arange(-10, 11)
