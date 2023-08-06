@@ -47,8 +47,8 @@ def pretrain(model, graph, feat, optimizer, max_epoch, device, scheduler, num_cl
             loss_dict["lr"] = get_current_lr(optimizer)
             logger.note(loss_dict, step=epoch)
 
-        if (epoch + 1) % 200 == 0:
-            node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f, max_epoch_f, device, linear_prob, mute=True)
+        #if (epoch + 1) % 200 == 0:
+            #node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f, max_epoch_f, device, linear_prob, mute=True)
 
     # return best_model
     return model
@@ -140,17 +140,18 @@ def main(args):
         model = model.to(device)
         model.eval()
 
-        final_acc, estp_acc = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f, max_epoch_f, device, linear_prob)
-        acc_list.append(final_acc)
-        estp_acc_list.append(estp_acc)
+        #final_acc, estp_acc = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f, max_epoch_f, device, linear_prob)#
+        acc_list = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f,max_epoch_f, device,dataset_name=args.dataset,mute=False)
+        #acc_list.append(final_acc)
+        #estp_acc_list.append(estp_acc)
 
         if logger is not None:
             logger.finish()
 
     final_acc, final_acc_std = np.mean(acc_list), np.std(acc_list)
-    estp_acc, estp_acc_std = np.mean(estp_acc_list), np.std(estp_acc_list)
+    #estp_acc, estp_acc_std = np.mean(estp_acc_list), np.std(estp_acc_list)
     print(f"# final_acc: {final_acc:.4f}±{final_acc_std:.4f}")
-    print(f"# early-stopping_acc: {estp_acc:.4f}±{estp_acc_std:.4f}")
+    #print(f"# early-stopping_acc: {estp_acc:.4f}±{estp_acc_std:.4f}")
 
 
 # Press the green button in the gutter to run the script.
