@@ -151,6 +151,17 @@ def main(args):
     print(f"# final_acc: {final_acc:.4f}±{final_acc_std:.4f}")
     #print(f"# early-stopping_acc: {estp_acc:.4f}±{estp_acc_std:.4f}")
 
+    mean_score = final_acc
+    std_score = final_acc_std
+    # Ensure the directory exists
+    os.makedirs(args.logdir, exist_ok=True)
+
+    filename = f"final_score.txt"
+    with open(os.path.join(args.logdir, filename), 'w') as f:
+        f.write(f"Mean: {mean_score}\n")
+        f.write(f"Standard Deviation: {std_score}\n")
+    print(f"Final Score - Mean: {mean_score}, Standard Deviation: {std_score}")
+
 
 # Press the green button in the gutter to run the script.
 if __name__ == "__main__":
