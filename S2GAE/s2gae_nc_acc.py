@@ -201,7 +201,7 @@ def main():
     parser.add_argument('--batch_size', type=int, default=1024)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--epochs', type=int, default=400)
-    parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--seeds', type=list, default=[0,1])
     parser.add_argument('--eval_steps', type=int, default=1)
     parser.add_argument('--runs', type=int, default=3)
     parser.add_argument('--mask_type', type=str, default='dm',
@@ -210,7 +210,7 @@ def main():
                         help='Use attribute or not')
     parser.add_argument('--mask_ratio', type=float, default=0.8)
     parser.add_argument("--feature_type", type=str, default="TA")
-    
+    parser.add_argument("--logdir", type=str, default='runs/')
     args = parser.parse_args()
     print(args)
 
