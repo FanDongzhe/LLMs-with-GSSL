@@ -4,18 +4,12 @@ import torch
 import torch.nn as nn
 import random
 from models import DGI, LogReg
-from utils import process
+from utils import process,logistic_regression_eval as eval
 import pdb
 import aug
 import os
 import argparse
-from sklearn.preprocessing import OneHotEncoder
-from sklearn.model_selection import GridSearchCV, ShuffleSplit
-from sklearn.metrics import accuracy_score
-from sklearn.linear_model import LogisticRegression
-from sklearn.multiclass import OneVsRestClassifier
-from sklearn.model_selection import StratifiedKFold
-import json
+
 
 parser = argparse.ArgumentParser("My DGI")
 
