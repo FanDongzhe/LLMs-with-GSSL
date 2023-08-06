@@ -88,17 +88,19 @@ def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_f
             data=data[0]
             num_nodes = data.num_nodes()
             data.x = data.ndata['feat'] # ref https://github.com/XiaoxinHe/TAPE/blob/241c93b735dcebbe2853414395c1559d5c2ce202/core/GNNs/dgl_gnn_trainer.py#L39C8-L39C8
-            data = data.add_self_loop() # ! add self loop for pyg\dgl data 
+            data = data.remove_self_loop().add_self_loop() # ! dgl add_self_loop will duplicate self_loop
         else:
             num_nodes = data.x.shape[0]
             num_classes = data.y.unique().size(0)
             data.y = data.y.squeeze()
-            edge_index, _ = remove_self_loops(data.edge_index)
-            data.edge_index,_ = add_self_loops(edge_index)# ! add self loop for pyg\dgl data 
+            
+            if dataset_name != "ogbn-arxiv": # ogbn-arxiv already has self loop and is directed, do not support this 
+                edge_index, _ = remove_self_loops(data.edge_index)
+                data.edge_index,_ = add_self_loops(edge_index)# ! add self loop for pyg\dgl data 
             
         if sclae_feat:
-            assert feature_type == 'ogb', "only scale original feature for graphMAE"
-            data.x = scale_feats(data.x) # !the GraphMAE scaled feat '
+            if feature_type == 'ogb': #"only scale original feature"
+                data.x = scale_feats(data.x) # !the GraphMAE scaled feat '
 
 
         # ! Init gnn feature

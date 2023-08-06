@@ -9,8 +9,16 @@ import pdb
 import aug
 import os
 import argparse
-
-
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.model_selection import GridSearchCV, ShuffleSplit
+from sklearn.metrics import accuracy_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.multiclass import OneVsRestClassifier
+from sklearn.model_selection import StratifiedKFold
+import json
+import sys
+sys.path.append("..") 
+import data_utils.logistic_regression_eval as eval
 parser = argparse.ArgumentParser("My DGI")
 
 parser.add_argument('--dataset',          type=str,           default="",                help='data')
@@ -20,6 +28,8 @@ parser.add_argument('--seed',             type=int,           default=39,       
 parser.add_argument('--gpu',              type=int,           default=0,                 help='gpu')
 parser.add_argument('--save_name',        type=str,           default='try.pkl',                help='save ckpt name')
 parser.add_argument('--k_shot',        type=float,           default='5',                help='number of samples per class')
+parser.add_argument('--feature_type',        type=str,           default='TA',                help='feature_type')
+
 
 args = parser.parse_args()
 
@@ -50,11 +60,12 @@ sparse = True
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 nonlinearity = 'prelu' # special name to separate parameters
-#adj, features, labels, idx_train, idx_val, idx_test,nb_nodes,ft_size,nb_classes = process.load_data(dataset)
-adj, features, labels, idx_train, idx_val, idx_test,nb_nodes,ft_size = process.load_data_new(dataset)
+adj, features, labels, idx_train, idx_val, idx_test,nb_nodes,ft_size,nb_classes = process.load_data(dataset,device=device,feature_type=args.feature_type)
+# adj, features, labels, idx_train, idx_val, idx_test,nb_nodes,ft_size = process.load_data(dataset,device=device,feature_type=args.feature_type)
 
 features = process.preprocess_features(features)
-#features = torch.FloatTensor(features[np.newaxis])
+features = torch.FloatTensor(features.todense()[np.newaxis])
+
 
 def one_hot_to_label(one_hot_encoding):
     return np.argmax(one_hot_encoding, axis=1)

@@ -20,9 +20,11 @@ from scipy.sparse import csr_matrix
 import torch_geometric
 from scipy.sparse import lil_matrix
 
-from data_utils.load import load_data as load_data_text
-from data_utils.load import emb2dataX
+# from data_utils.load import load_data as load_data_text
+# from data_utils.load import emb2dataX
 
+sys.path.append("..") 
+from data_utils.load import load_llm_feature_and_data
 ###############################################
 # This section of code adapted from tkipf/gcn #
 ###############################################
@@ -49,16 +51,15 @@ def sample_mask(idx, l):
 
 
 
-def load_data(dataset_str):
+def load_data(dataset_str,device,feature_type,):
     if dataset_str in ['cora','pubmed']:
-        if dataset_str == 'cora':
-            dataset = dgl.data.CoraGraphDataset()
-        if dataset_str == 'pubmed':
-            dataset = dgl.data.PubmedGraphDataset()
+        g = load_llm_feature_and_data(dataset_name=dataset_str,LLM_feat_seed=0,lm_model_name='microsoft/deberta-base',
+                               feature_type=feature_type, use_dgl = True , device = device ).cpu()
         # 获取图数据
-        g = dataset[0]
+        
         # 将DGL图转换为CSR格式的邻接矩阵
-        adjacency = g.adjacency_matrix_scipy(return_edge_ids=False)
+        # adjacency = g.adjacency_matrix_scipy(return_edge_ids=False)
+        adjacency = g.adj_external(scipy_fmt='csr')
         adj = csr_matrix(adjacency)
         # 将DGL图的节点特征转换为LIL格式的矩阵
         features_ = g.ndata['feat']
@@ -78,40 +79,47 @@ def load_data(dataset_str):
         # 获取节点数量、特征大小和类别数量
         nb_nodes = g.number_of_nodes()
         ft_size = features_.shape[1]
-        nb_classes = dataset.num_classes
+        nb_classes = g.ndata['label'].unique().size(0)
         return adj, features, labels, idx_train, idx_val, idx_test, nb_nodes, ft_size, nb_classes
 
     if dataset_str == 'ogbn-arxiv':
-        dataset = DglNodePropPredDataset(name='ogbn-arxiv')
-        split_idx = dataset.get_idx_split()
-        g, labels = dataset[0]  # 这是一个带有节点属性预测标签的图
+        g = load_llm_feature_and_data(dataset_name=dataset_str,LLM_feat_seed=0,lm_model_name='microsoft/deberta-base',
+                               feature_type=feature_type, use_dgl = True , device = device ).cpu()
+        
+        # split_idx = dataset.get_idx_split()
+        labels = g.ndata['label']  # 这是一个带有节点属性预测标签的图
         labels = labels[:, 0]  # 取出标签
 
         # 将DGL图转换为CSR格式的邻接矩阵
-        adjacency = g.adjacency_matrix_scipy(return_edge_ids=False)
+        # adjacency = g.adjacency_matrix_scipy(return_edge_ids=False)
+        adjacency = g.adj_external(scipy_fmt='csr')
         adj = csr_matrix(adjacency)
 
         # 将DGL图的节点特征转换为LIL格式的矩阵
         features_ = g.ndata['feat']
         features = lil_matrix(features_)
 
+
         # 获取训练、验证和测试节点的索引
-        idx_train = split_idx["train"]
-        idx_val = split_idx["valid"]
-        idx_test = split_idx["test"]
+        idx_train = np.where(g.ndata['train_mask'])[0]
+        idx_val = np.where(g.ndata['val_mask'])[0]
+        idx_test = np.where(g.ndata['test_mask'])[0]
 
         # 获取节点数量、特征大小和类别数量
         nb_nodes = g.number_of_nodes()
         ft_size = features_.shape[1]
-        nb_classes = dataset.num_classes
+        nb_classes = g.ndata['label'].unique().size(0)
         return adj,features,labels,idx_train, idx_val, idx_test, nb_nodes,ft_size,nb_classes
 
 def load_data_new(dataset_str):
+    assert False
     if dataset_str in ['cora','pubmed']:
         if dataset_str == 'cora':
             dataset = load_data_text('cora', use_dgl=True, use_text=False, use_gpt=False, seed=0)
         if dataset_str == 'pubmed':
             dataset = load_data_text('pubmed', use_dgl=True, use_text=False, use_gpt=False, seed=0)
+                
+    
         dataset_old = dgl.data.PubmedGraphDataset()
         # 获取图数据
         g = dataset[0]

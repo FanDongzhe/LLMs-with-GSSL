@@ -12,8 +12,6 @@ from graphmae.utils import (
     get_current_lr,
     load_best_configs,
 )
-from graphmae.datasets.data_util import scale_feats
-from utils import to_dgl
 sys.path.append("..") 
 from data_utils.load import load_llm_feature_and_data
 

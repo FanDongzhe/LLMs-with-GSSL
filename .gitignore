@@ -2,8 +2,8 @@ S2GAE/weight
 S2GAE/dataset
 BGRL/dataset
 BGRL/runs
-
-
+*/dataset
+*.pkl
 S2GAE/prt_lm
 GraphMAE/dataset
 GraphMAE/prt_lm
