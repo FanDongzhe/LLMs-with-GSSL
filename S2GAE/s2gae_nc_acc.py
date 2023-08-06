@@ -311,7 +311,7 @@ def main():
     print('Start training with mask ratio={} # optimization edges={} / {}'.format(args.mask_ratio,
                                                                              int(args.mask_ratio *
                                                                                  edge_index.shape[0]), edge_index.shape[0]))
-
+    all_accs = []
     for run in range(args.runs):
         model.reset_parameters()
         predictor.reset_parameters()
@@ -368,14 +368,17 @@ def main():
             #       .format(run + 1, args.runs, result_dict[i], f1_mic_svm, f1_mac_svm, acc_svm))
             
             #这部分需要测试一下，保证输入的feature_tmp是一个二维numpy数组，labels是一个一维numpy数组（而不是one hot编码）
-            accs =  eval.fit_logistic_regression(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy(),
-                                                    args.dataset)
+            accs = eval.fit_logistic_regression(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy(),
+                                                args.dataset,args.seeds)
             final_acc.append(accs)
+            all_accs.append(accs)
             #打印accs数组的均值和方差
         print('Test acc:[{:.4f}]'.format(np.mean(final_acc)))
         print('Test std:[{:.4f}]'.format(np.std(final_acc)))                                        
             
-
+    mean_score = np.mean(all_accs)
+    std_score = np.std(all_accs)
+    
     svm_result_final = np.array(svm_result_final)
 
     if osp.exists(save_path_model):
@@ -383,12 +386,22 @@ def main():
         os.remove(save_path_predictor)
         print('Successfully delete the saved models')
 
+    '''
     print('\n------- Print final result for SVM')
     for i in range(len(out2_dict)):
         temp_resullt = svm_result_final[:, i]
         print('#### Final svm test result on {} is mean={} std={}'.format(result_dict[i], np.mean(temp_resullt),
                                                                           np.std(temp_resullt)))
+    '''
+    
+    # Ensure the directory exists
+    os.makedirs(args.logdir, exist_ok=True)
 
-
+    filename = f"final_score.txt"
+    with open(os.path.join(args.logdir, filename), 'w') as f:
+        f.write(f"Mean: {mean_score}\n")
+        f.write(f"Standard Deviation: {std_score}\n")
+    print(f"Final Score - Mean: {mean_score}, Standard Deviation: {std_score}")
+    
 if __name__ == "__main__":
     main()
