@@ -1,11 +1,23 @@
+import copy
 import logging
+import os
 
 from absl import app
 from absl import flags
-import numpy as np
 import torch
-
+from torch.nn.functional import cosine_similarity
+from torch.optim import AdamW
+from torch.utils.tensorboard import SummaryWriter
+from tqdm import tqdm
+import numpy as np
+#from torch_geometric.utils.sparse import to_edge_index
+import json
 from bgrl import *
+from bgrl import BGRL
+import sys
+sys.path.append("..") 
+from data_utils.load import load_llm_feature_and_data
+import data_utils.logistic_regression_eval as eval
 
 log = logging.getLogger(__name__)
 FLAGS = flags.FLAGS
@@ -54,7 +66,7 @@ def main(argv):
     representations, labels = compute_representations(encoder, dataset, device)
 
     # fit logistic regression
-    scores = fit_logistic_regression(representations.cpu().numpy(), labels.cpu().numpy(), FLAGS.k_shot)
+    scores = eval.fit_logistic_regression(representations.cpu().numpy(), labels.cpu().numpy(),FLAGS.dataset,FLAGS.number_of_splits)
 
     score = np.mean(scores)
     print('Test score: %.5f' %score)
