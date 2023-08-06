@@ -24,12 +24,12 @@ parser = argparse.ArgumentParser("My DGI")
 parser.add_argument('--dataset',          type=str,           default="",                help='data')
 parser.add_argument('--aug_type',         type=str,           default="",                help='aug type: mask or edge')
 parser.add_argument('--drop_percent',     type=float,         default=0.1,               help='drop percent')
-parser.add_argument('--seed',             type=int,           default=39,                help='seed')
+parser.add_argument('--seeds',             type=list,           default=[0,1],                help='seed')
 parser.add_argument('--gpu',              type=int,           default=0,                 help='gpu')
 parser.add_argument('--save_name',        type=str,           default='try.pkl',                help='save ckpt name')
 parser.add_argument('--k_shot',        type=float,           default='5',                help='number of samples per class')
 parser.add_argument('--feature_type',        type=str,           default='TA',                help='feature_type')
-
+parser.add_argument('--logdir',        type=str,           default='./runs/cora',                help='dir to save results')
 
 args = parser.parse_args()
 
@@ -42,11 +42,7 @@ aug_type = args.aug_type
 drop_percent = args.drop_percent
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
-seed = args.seed
-random.seed(seed)
-np.random.seed(seed)
-torch.manual_seed(seed)
-torch.cuda.manual_seed(seed)
+
 
 # training params
 batch_size = 1
@@ -225,9 +221,19 @@ model.load_state_dict(torch.load(args.save_name))
 embeds, _ = model.embed(features, sp_adj if sparse else adj, sparse, None)
 accs = []
 accs = eval.fit_logistic_regression(embeds[0,].cpu().numpy(),labels_eavl,args.dataset)
+mean_score = np.mean(accs)
+std_score = np.std(accs)
+
+# Ensure the directory exists
+os.makedirs(args.logdir, exist_ok=True)
+
+filename = f"final_score.txt"
+with open(os.path.join(args.logdir, filename), 'w') as f:
+    f.write(f"Mean: {mean_score}\n")
+    f.write(f"Standard Deviation: {std_score}\n")
+print(f"Final Score - Mean: {mean_score}, Standard Deviation: {std_score}")
 
 #打印accs数组的均值和方差
 print('Test acc:[{:.4f}]'.format(np.mean(accs)))
 print('Test std:[{:.4f}]'.format(np.std(accs)))
-
 
