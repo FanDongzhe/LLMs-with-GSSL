@@ -89,9 +89,9 @@ def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_f
             data = build_data_from_csv(csv_dir)
             '''
             if use_BoW:
-                data_path = 'C:/Users/YI/Desktop/dataset/computers/Computers_Final_with_BoW_embeddings.pt'
+                data_path = 'dataset/computers/Computers_Final_with_BoW_embeddings.pt'
             else:
-                data_path = 'C:/Users/YI/Desktop/dataset/computers/Computers_Final_with_W2V_embeddings.pt'
+                data_path = 'dataset/computers/Computers_Final_with_W2V_embeddings.pt'
             data = torch.load(data_path)
         elif dataset_name == 'amazon-photo':
             '''
@@ -99,9 +99,9 @@ def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_f
             data = build_data_from_csv(csv_dir)
             '''
             if use_BoW:
-                data_path = 'C:/Users/YI/Desktop/dataset/photo/Photo_Final_with_BoW_embeddings.pt'
+                data_path = 'dataset/photo/Photo_Final_with_BoW_embeddings.pt'
             else:
-                data_path = 'C:/Users/YI/Desktop/dataset/photo/Photo_Final_with_W2V_embeddings.pt'
+                data_path = 'dataset/photo/Photo_Final_with_W2V_embeddings.pt'
             data = torch.load(data_path)
         elif dataset_name == 'amazon-history':
             '''
@@ -109,9 +109,9 @@ def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_f
             data = build_data_from_csv(csv_dir)
             '''
             if use_BoW:
-                data_path = 'C:/Users/YI/Desktop/dataset/history/History_Final_with_BoW_embeddings.pt'
+                data_path = 'dataset/history/History_Final_with_BoW_embeddings.pt'
             else:
-                data_path = 'C:/Users/YI/Desktop/dataset/history/History_Final_with_W2V_embeddings.pt'
+                data_path = 'dataset/history/History_Final_with_W2V_embeddings.pt'
             data = torch.load(data_path)
         
         if  use_dgl:
