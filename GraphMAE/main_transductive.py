@@ -15,7 +15,7 @@ from graphmae.utils import (
 )
 sys.path.append("..") 
 from data_utils.load import load_llm_feature_and_data
-
+import data_utils.logistic_regression_eval as eval
 from graphmae.evaluation import node_classification_evaluation
 from graphmae.models import build_model
 
@@ -55,7 +55,8 @@ def pretrain(model, graph, feat, optimizer, max_epoch, device, scheduler, num_cl
 
 def main(args):
     device = args.device if args.device >= 0 else "cpu"
-    seeds = args.seeds
+    data_seeds = args.data_seeds
+    model_seeds = args.model_seeds
     dataset_name = args.dataset
     max_epoch = args.max_epoch
     max_epoch_f = args.max_epoch_f
@@ -95,15 +96,10 @@ def main(args):
     args.num_features = num_features
 
     acc_list = []
-    estp_acc_list = []
     for i, seed in enumerate(seeds):
         print(f"####### Run {i} for seed {seed}")
         set_random_seed(seed)
 
-
-        # graph, (num_features, num_classes)= to_dgl(data),(data.x.shape[1],data.y.unique().size(0))
-
-        
         if logs:
             logger = TBLogger(name=f"{dataset_name}_loss_{loss_fn}_rpr_{replace_rate}_nh_{num_hidden}_nl_{num_layers}_lr_{lr}_mp_{max_epoch}_mpf_{max_epoch_f}_wd_{weight_decay}_wdf_{weight_decay_f}_{encoder_type}_{decoder_type}")
         else:
@@ -123,7 +119,6 @@ def main(args):
             scheduler = None
             
         x = features
-        # x = graph.ndata["feat"]
            
         if not load_model:
             model = pretrain(model, graph, x, optimizer, max_epoch, device, scheduler, num_classes, lr_f, weight_decay_f, max_epoch_f, linear_prob, logger)
@@ -132,6 +127,7 @@ def main(args):
         if load_model:
             logging.info("Loading Model ... ")
             model.load_state_dict(torch.load("checkpoint.pt"))
+            
         if save_model:
             logging.info("Saveing Model ...")
             torch.save(model.state_dict(), f"{args.dataset}_checkpoint.pt")
@@ -140,7 +136,8 @@ def main(args):
         model.eval()
 
         #final_acc, estp_acc = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f, max_epoch_f, device, linear_prob)#
-        acc = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f,max_epoch_f, device,dataset_name=args.dataset,mute=False, data_random_seeds=args.seeds)
+        #acc = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f,max_epoch_f, device,dataset_name=args.dataset,mute=False, data_random_seeds=args.seeds)
+        acc = eval.fit_logistic_regression_new(graph,args.dataset, data_random_seeds = data_seeds)
         acc_list.extend(acc)
         #acc_list.append(final_acc)
         #estp_acc_list.append(estp_acc)
