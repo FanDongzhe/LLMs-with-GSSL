@@ -67,7 +67,7 @@ def load_data(dataset, use_dgl=False, use_text=False, use_gpt=False, seed=0):
     return data, text
 
 def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_feat_seed = 0, lm_model_name="microsoft/deberta-base",
-                              device = 0 , sclae_feat = False):
+                              device = 0 , sclae_feat = False,use_BoW = True):
         '''
         args:
             feature_type: TA or E or P 
@@ -81,8 +81,38 @@ def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_f
         '''
         seed = LLM_feat_seed
         # ! Load data from ogb
-        data = load_data(dataset_name, use_dgl=use_dgl,
-                         use_text=False)
+        if dataset_name in ('cora', 'pubmed', 'ogbn-arxiv', 'Cora', 'Pubmed','arxiv'):                
+            data = load_data(dataset_name, use_dgl=use_dgl, use_text=False)
+        elif dataset_name == 'amazon-computers':
+            '''
+            csv_dir = 'C:/Users/YI/Desktop/dataset/computers/Computers_Final_with_W2V_embeddings.csv'
+            data = build_data_from_csv(csv_dir)
+            '''
+            if use_BoW:
+                data_path = 'dataset/computers/Computers_Final_with_BoW_embeddings.pt'
+            else:
+                data_path = 'dataset/computers/Computers_Final_with_W2V_embeddings.pt'
+            data = torch.load(data_path)
+        elif dataset_name == 'amazon-photo':
+            '''
+            csv_dir = 'C:/Users/YI/Desktop/dataset/photo/Photo_Final_with_W2V_embeddings.csv'
+            data = build_data_from_csv(csv_dir)
+            '''
+            if use_BoW:
+                data_path = 'dataset/photo/Photo_Final_with_BoW_embeddings.pt'
+            else:
+                data_path = 'dataset/photo/Photo_Final_with_W2V_embeddings.pt'
+            data = torch.load(data_path)
+        elif dataset_name == 'amazon-history':
+            '''
+            csv_dir = 'C:/Users/YI/Desktop/dataset/history/History_Final_with_BoW_embeddings.csv'
+            data = build_data_from_csv(csv_dir)
+            '''
+            if use_BoW:
+                data_path = 'dataset/history/History_Final_with_BoW_embeddings.pt'
+            else:
+                data_path = 'dataset/history/History_Final_with_W2V_embeddings.pt'
+            data = torch.load(data_path)
         
         if  use_dgl:
             data=data[0]
