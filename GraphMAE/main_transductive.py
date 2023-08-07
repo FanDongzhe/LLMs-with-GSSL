@@ -45,7 +45,7 @@ def pretrain(model, graph, feat, optimizer, max_epoch, device, scheduler, num_cl
         if logger is not None:
             loss_dict["lr"] = get_current_lr(optimizer)
             logger.note(loss_dict, step=epoch)
-
+        # break
         #if (epoch + 1) % 200 == 0:
             #node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f, max_epoch_f, device, linear_prob, mute=True)
 
@@ -134,13 +134,14 @@ def main(args):
             model.load_state_dict(torch.load("checkpoint.pt"))
         if save_model:
             logging.info("Saveing Model ...")
-            torch.save(model.state_dict(), "checkpoint.pt")
+            torch.save(model.state_dict(), f"{args.dataset}_checkpoint.pt")
         
         model = model.to(device)
         model.eval()
 
         #final_acc, estp_acc = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f, max_epoch_f, device, linear_prob)#
-        acc_list = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f,max_epoch_f, device,dataset_name=args.dataset,mute=False, data_random_seeds=args.seeds)
+        acc = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f,max_epoch_f, device,dataset_name=args.dataset,mute=False, data_random_seeds=args.seeds)
+        acc_list.extend(acc)
         #acc_list.append(final_acc)
         #estp_acc_list.append(estp_acc)
 
