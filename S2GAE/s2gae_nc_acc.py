@@ -185,7 +185,6 @@ def test_classify(feature, labels, args):
           'acc=%.4f' % accs)
     return f1_mic, f1_mac, accs
 
-
 def main():
     parser = argparse.ArgumentParser(description='S2-GAE (GNN)')
     parser.add_argument('--device', type=int, default=0)
@@ -201,7 +200,7 @@ def main():
     parser.add_argument('--batch_size', type=int, default=1024)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--epochs', type=int, default=400)
-    parser.add_argument('--seeds', type=list, default=[0,1,2,3])
+    parser.add_argument('--data_seeds', type=list, default=[0,1,2,3])
     parser.add_argument('--eval_steps', type=int, default=1)
     parser.add_argument('--runs', type=int, default=3)
     parser.add_argument('--mask_type', type=str, default='dm',
@@ -368,8 +367,8 @@ def main():
             #       .format(run + 1, args.runs, result_dict[i], f1_mic_svm, f1_mac_svm, acc_svm))
             
             #这部分需要测试一下，保证输入的feature_tmp是一个二维numpy数组，labels是一个一维numpy数组（而不是one hot编码）
-            accs = eval.fit_logistic_regression(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy(),
-                                                args.dataset,args.seeds)
+            #accs = eval.fit_logistic_regression(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy(),args.dataset,args.seeds)
+            accs = eval.fit_logistic_regression_new(data,args.dataset,data_random_seeds=args.data_seeds,)
             final_acc.append(accs)
             all_accs.append(accs)
             #打印accs数组的均值和方差
