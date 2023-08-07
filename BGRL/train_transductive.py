@@ -61,7 +61,7 @@ flags.DEFINE_integer('eval_epochs', 25, 'Evaluate every eval_epochs.')
 flags.DEFINE_bool('use_dgl', False, '.')
 flags.DEFINE_bool('use_text', False, '.')
 flags.DEFINE_bool('use_gpt', False, '.')
-
+flags.DEFINE_bool('use_BoW', True, '.')
 
 def main(argv):
     # use CUDA_VISIBLE_DEVICES to select gpu
@@ -153,7 +153,8 @@ def main(argv):
         representations, labels = compute_representations(tmp_encoder, dataset, device)
 
         # evaluate
-        scores = fit_logistic_regression(representations.cpu().numpy(), labels.cpu().numpy(),FLAGS.dataset, data_random_seeds = FLAGS.data_seeds)
+        #scores = fit_logistic_regression(representations.cpu().numpy(), labels.cpu().numpy(),FLAGS.dataset, data_random_seeds = FLAGS.data_seeds)
+        scores = fit_logistic_regression_new(data,FLAGS.dataset, data_random_seeds = FLAGS.data_seeds)
 
         for i, score in enumerate(scores):
             writer.add_scalar(f'accuracy/test_{i}', score, epoch)
