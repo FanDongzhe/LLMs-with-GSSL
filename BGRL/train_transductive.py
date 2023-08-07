@@ -85,7 +85,8 @@ def main(argv):
         dataset_name = FLAGS.dataset, 
         lm_model_name='microsoft/deberta-base',
         feature_type=FLAGS.feature_type,
-        device=FLAGS.device)
+        device=FLAGS.device,
+        use_BoW=FLAGS.use_BoW,)
     #if FLAGS.dataset == 'ogbn-arxiv':
         #dataset.edge_index,_ = to_edge_index(dataset.edge_index)
 
