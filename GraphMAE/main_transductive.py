@@ -3,6 +3,7 @@ import sys
 import numpy as np
 from tqdm import tqdm
 import torch
+import os
 
 from graphmae.utils import (
     build_args,
@@ -139,7 +140,7 @@ def main(args):
         model.eval()
 
         #final_acc, estp_acc = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f, max_epoch_f, device, linear_prob)#
-        acc_list = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f,max_epoch_f, device,dataset_name=args.dataset,mute=False)
+        acc_list = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f,max_epoch_f, device,dataset_name=args.dataset,mute=False, data_random_seeds=args.seeds)
         #acc_list.append(final_acc)
         #estp_acc_list.append(estp_acc)
 

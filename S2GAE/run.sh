@@ -1,4 +1,4 @@
-for dataset in 'arxiv'; do #'Cora' 'Pubmed' 'arxiv'; do
+for dataset in 'Cora' 'Pubmed' 'arxiv'; do #'Cora' 'Pubmed' 'arxiv'; do
     count=0
     for feature_type in 'ogb' 'TA' 'E' 'P'; do
         export CUDA_VISIBLE_DEVICES=${count}  

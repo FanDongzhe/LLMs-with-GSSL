@@ -201,7 +201,7 @@ def main():
     parser.add_argument('--batch_size', type=int, default=1024)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--epochs', type=int, default=400)
-    parser.add_argument('--seeds', type=list, default=[0,1])
+    parser.add_argument('--seeds', type=list, default=[0,1,2,3])
     parser.add_argument('--eval_steps', type=int, default=1)
     parser.add_argument('--runs', type=int, default=3)
     parser.add_argument('--mask_type', type=str, default='dm',
