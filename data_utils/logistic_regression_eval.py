@@ -19,11 +19,8 @@ def split_data_k(y, k_shot=20,data_random_seed=0):
         val_indices.extend(class_val_indices)
 
     val_indices = np.array(val_indices)
-    all_indices = np.setdiff1d(all_indices, val_indices)
+    remaining_indices = np.setdiff1d(all_indices, val_indices)
 
-    num_test = int(len(all_indices) * 0.2)
-    test_indices = np.random.choice(all_indices, num_test, replace=False)
-    remaining_indices = np.setdiff1d(all_indices, test_indices)
 
     train_indices = []
 
@@ -34,6 +31,17 @@ def split_data_k(y, k_shot=20,data_random_seed=0):
             raise ValueError(f"Not enough samples in class {i} for k-shot learning")
         class_indices = np.random.choice(class_indices, k_shot, replace=False)
         train_indices.extend(class_indices)
+        
+    remaining_indices = np.setdiff1d(remaining_indices, train_indices)
+    test_indices = remaining_indices
+    
+    #for part test
+    # num_test = int(len(all_indices) * 1)  - len(val_indices) - int(k_shot * num_classes)
+    # test_indices = np.random.choice(remaining_indices, num_test, replace=False)
+
+
+    # remaining_indices = np.setdiff1d(all_indices, test_indices)
+    
 
     train_mask = np.isin(np.arange(len(y)), train_indices)
     val_mask = np.isin(np.arange(len(y)), val_indices)
