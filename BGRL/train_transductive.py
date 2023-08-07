@@ -91,6 +91,7 @@ def main(argv):
 
     #num_eval_splits = FLAGS.num_eval_splits if FLAGS.dataset in ('cora', 'pubmed') else 1
     data = dataset
+    data.x = data.x.float()
     data = data.to(device)  # permanently move in gpy memory
 
     # prepare transforms
