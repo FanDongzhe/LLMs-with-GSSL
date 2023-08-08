@@ -45,7 +45,7 @@ def pretrain(model, graph, feat, optimizer, max_epoch, device, scheduler, num_cl
         if logger is not None:
             loss_dict["lr"] = get_current_lr(optimizer)
             logger.note(loss_dict, step=epoch)
-
+        # break
         #if (epoch + 1) % 200 == 0:
         #    epacc = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f, max_epoch_f, device, linear_prob, mute=True)
 

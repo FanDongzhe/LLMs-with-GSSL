@@ -200,9 +200,9 @@ def main():
     parser.add_argument('--batch_size', type=int, default=1024)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--epochs', type=int, default=400)
-    parser.add_argument('--data_seeds', type=list, default=[0,1,2,3])
+    parser.add_argument('--data_seeds', type=list, default=[0,1])
     parser.add_argument('--eval_steps', type=int, default=1)
-    parser.add_argument('--runs', type=int, default=3)
+    parser.add_argument('--runs', type=int, default=5)
     parser.add_argument('--mask_type', type=str, default='dm',
                         help='dm | um')  # whether to use mask features
     parser.add_argument('--patience', type=int, default=50,
@@ -310,7 +310,8 @@ def main():
     print('Start training with mask ratio={} # optimization edges={} / {}'.format(args.mask_ratio,
                                                                              int(args.mask_ratio *
                                                                                  edge_index.shape[0]), edge_index.shape[0]))
-    all_accs = []
+    final_acc_list = []
+    early_stp_acc_list=[]
     for run in range(args.runs):
         model.reset_parameters()
         predictor.reset_parameters()
@@ -346,7 +347,7 @@ def main():
             print('***************')
             if cnt_wait == 50:
                 print('Early stop at {}'.format(epoch))
-                break
+            # break
 
         print('##### Testing on {}/{}'.format(run, args.runs))
 
@@ -357,7 +358,6 @@ def main():
 
         feature_list = extract_feature_list_layer2(feature)
 
-        final_acc=[]
         
         for i, feature_tmp in enumerate(feature_list):
             # f1_mic_svm, f1_mac_svm, acc_svm = test_classify(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy(),
@@ -368,15 +368,20 @@ def main():
             
             #这部分需要测试一下，保证输入的feature_tmp是一个二维numpy数组，labels是一个一维numpy数组（而不是one hot编码）
             #accs = eval.fit_logistic_regression(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy(),args.dataset,args.seeds)
-            accs = eval.fit_logistic_regression_new(data,args.dataset,data_random_seeds=args.data_seeds,)
-            final_acc.append(accs)
-            all_accs.append(accs)
+            final_acc,early_stp_acc = eval.fit_logistic_regression_new(features=feature_tmp,labels=labels,
+                                                                       dataset_name=args.dataset,data_random_seeds=args.data_seeds,
+                                                                       device=device
+                                                                       )
+            final_acc_list.append(final_acc)
+            early_stp_acc_list.append(early_stp_acc)
             #打印accs数组的均值和方差
         print('Test acc:[{:.4f}]'.format(np.mean(final_acc)))
         print('Test std:[{:.4f}]'.format(np.std(final_acc)))                                        
             
-    mean_score = np.mean(all_accs)
-    std_score = np.std(all_accs)
+    final_acc, final_acc_std = np.mean(final_acc_list), np.std(final_acc_list)
+    estp_acc, estp_acc_std = np.mean(early_stp_acc_list), np.std(early_stp_acc_list)
+    print(f"# final_acc: {final_acc:.4f}±{final_acc_std:.4f}")
+    print(f"# early-stopping_acc: {estp_acc:.4f}±{estp_acc_std:.4f}")
     
     svm_result_final = np.array(svm_result_final)
 
@@ -393,14 +398,14 @@ def main():
                                                                           np.std(temp_resullt)))
     '''
     
-    # Ensure the directory exists
-    os.makedirs(args.logdir, exist_ok=True)
+    # # Ensure the directory exists
+    # os.makedirs(args.logdir, exist_ok=True)
 
-    filename = f"final_score.txt"
-    with open(os.path.join(args.logdir, filename), 'w') as f:
-        f.write(f"Mean: {mean_score}\n")
-        f.write(f"Standard Deviation: {std_score}\n")
-    print(f"Final Score - Mean: {mean_score}, Standard Deviation: {std_score}")
+    # filename = f"final_score.txt"
+    # with open(os.path.join(args.logdir, filename), 'w') as f:
+    #     f.write(f"Mean: {mean_score}\n")
+    #     f.write(f"Standard Deviation: {std_score}\n")
+    # print(f"Final Score - Mean: {mean_score}, Standard Deviation: {std_score}")
     
 if __name__ == "__main__":
     main()
