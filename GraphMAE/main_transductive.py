@@ -13,12 +13,12 @@ from graphmae.utils import (
     get_current_lr,
     load_best_configs,
 )
-sys.path.append("..") 
+sys.path.append("..")
+from graphmae.datasets.data_util import scale_feats
 from data_utils.load import load_llm_feature_and_data
 import data_utils.logistic_regression_eval as eval
-from graphmae.evaluation import node_classification_evaluation
 from graphmae.models import build_model
-
+from graphmae.evaluation import node_classification_evaluation
 
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
 
@@ -45,9 +45,9 @@ def pretrain(model, graph, feat, optimizer, max_epoch, device, scheduler, num_cl
         if logger is not None:
             loss_dict["lr"] = get_current_lr(optimizer)
             logger.note(loss_dict, step=epoch)
-        # break
+
         #if (epoch + 1) % 200 == 0:
-            #node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f, max_epoch_f, device, linear_prob, mute=True)
+        #    epacc = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f, max_epoch_f, device, linear_prob, mute=True)
 
     # return best_model
     return model
@@ -80,14 +80,11 @@ def main(args):
     use_scheduler = args.scheduler
 
 
-    graph = load_llm_feature_and_data(dataset_name=args.dataset,LLM_feat_seed=seeds[0],lm_model_name='microsoft/deberta-base',
-                               feature_type=args.feature_type, use_dgl = True , device = args.device , 
-                               sclae_feat= True if dataset_name == "ogbn-arxiv" else False )
-    # if dataset_name != "ogbn-arxiv":
-    #     graph = graph.remove_self_loop()
-    #     graph = graph.add_self_loop()
-
-        
+    graph = load_llm_feature_and_data(dataset_name=args.dataset,LLM_feat_seed=data_seeds[0],lm_model_name='microsoft/deberta-base',
+                               feature_type=args.feature_type, use_dgl = True , device = args.device)
+    
+    #graph.ndata['feat'] = scale_feats(graph.ndata['feat'].cpu()).to(args.device) # !the GraphMAE scaled feat
+    graph.ndata['feat'] = scale_feats(graph.ndata['feat'].cpu()).to('cpu')
     features = graph.ndata['feat'] 
     
     # graph, (num_features, num_classes) = load_dataset(dataset_name)
@@ -96,7 +93,7 @@ def main(args):
     args.num_features = num_features
 
     acc_list = []
-    for i, seed in enumerate(seeds):
+    for i, seed in enumerate(model_seeds):
         print(f"####### Run {i} for seed {seed}")
         set_random_seed(seed)
 
@@ -112,36 +109,30 @@ def main(args):
         if use_scheduler:
             logging.info("Use schedular")
             scheduler = lambda epoch :( 1 + np.cos((epoch) * np.pi / max_epoch) ) * 0.5
-            # scheduler = lambda epoch: epoch / warmup_steps if epoch < warmup_steps \
-                    # else ( 1 + np.cos((epoch - warmup_steps) * np.pi / (max_epoch - warmup_steps))) * 0.5
             scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=scheduler)
         else:
             scheduler = None
-            
+
         x = features
-           
+
         if not load_model:
             model = pretrain(model, graph, x, optimizer, max_epoch, device, scheduler, num_classes, lr_f, weight_decay_f, max_epoch_f, linear_prob, logger)
             model = model.cpu()
 
         if load_model:
             logging.info("Loading Model ... ")
-            model.load_state_dict(torch.load("checkpoint.pt"))
-            
+            model.load_state_dict(torch.load('C:/Users/YI/Desktop/cora_checkpoint.pt'))
         if save_model:
             logging.info("Saveing Model ...")
-            torch.save(model.state_dict(), f"{args.dataset}_checkpoint.pt")
-        
+            torch.save(model.state_dict(), "checkpoint.pt")
+
         model = model.to(device)
         model.eval()
 
-        #final_acc, estp_acc = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f, max_epoch_f, device, linear_prob)#
-        #acc = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f,max_epoch_f, device,dataset_name=args.dataset,mute=False, data_random_seeds=args.seeds)
-        acc = eval.fit_logistic_regression_new(graph,args.dataset, data_random_seeds = data_seeds)
-        acc_list.extend(acc)
-        #acc_list.append(final_acc)
-        #estp_acc_list.append(estp_acc)
 
+        #acc_list = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f,max_epoch_f, device,dataset_name=args.dataset,data_random_seeds=args.data_seeds,mute=False)
+        acc = eval.fit_logistic_regression_new(graph,model,args.dataset, data_random_seeds = data_seeds)
+        acc_list.extend(acc)
         if logger is not None:
             logger.finish()
 
