@@ -59,7 +59,7 @@ def fit_logistic_regression(X, y, dataset_name,data_random_seeds):
     accuracies = []
     for data_random_seed in data_random_seeds:
         if dataset_name in ('Cora','Pubmed','cora','pubmed'):
-            train_mask, val_mask, test_mask = split_data_k(y, k_shot=20,data_random_seed=data_random_seed)
+            train_mask, val_mask, test_mask = split_data_k(y.cpu(), k_shot=20,data_random_seed=data_random_seed)
             X_train, y_train = X[train_mask], y_one_hot[train_mask]
             X_val, y_val = X[val_mask], y_one_hot[val_mask]
             X_test, y_test = X[test_mask], y_one_hot[test_mask]
@@ -94,7 +94,7 @@ class LogisticRegression_nn(nn.Module):
         super().__init__()
         self.linear = nn.Linear(num_dim, num_class)
 
-    def forward(self, g, x, *args):
+    def forward(self, x, *args):
         logits = self.linear(x)
         return logits
 
@@ -132,41 +132,22 @@ def accuracy(y_pred, y_true):
     correct = correct.sum().item()
     return correct / len(y_true)
 
-def fit_logistic_regression_new(data,model,dataset_name,data_random_seeds,device='cpu',):
-    if hasattr(data,'x') and data.x is not None:
-        x = model.embed(data.to(device), data.x.to(device))
-    else:
-        x = model.embed(data.to(device), data.ndata['feat'].to(device))
-    in_feat = x.shape[1]
-    if hasattr(data, 'y') and data.y is not None:
-        num_classes = data.y.max().item() + 1
-    else:
-        num_classes = data.ndata['label'].max().item() + 1
-
-    encoder = LogisticRegression_nn(in_feat, num_classes)
-    encoder.to(device)
-    optimizer_f = create_optimizer("adam", encoder, lr=0.01, weight_decay=2e-4)
-
-    accs = linear_probing_for_transductive_node_classiifcation(encoder, data, x,optimizer_f,data_random_seeds=data_random_seeds, dataset_name=dataset_name,
-                                                                              max_epoch=300, device=device, mute=False)
-    return accs
 
 
-def linear_probing_for_transductive_node_classiifcation(model, graph,x, optimizer, max_epoch, data_random_seeds, dataset_name, device, mute=False):
+
+def fit_logistic_regression_new(features, labels , data_random_seeds, dataset_name, device, mute=False ,max_epoch=300 ):
     criterion = torch.nn.CrossEntropyLoss()
 
-    graph = graph.to(device)
-    x = x.to(device)
+    x = features.to(device)
+    
+    num_classes =labels.max().item() + 1
+    
 
-    if hasattr(graph, 'y') and graph.y is not None:
-        labels = graph.y
-    else:
-        labels = graph.ndata['label']
-
-    accs = []
+    final_accs_list = []
+    estp_test_acc_list=[]
     for data_random_seed in data_random_seeds:
         if dataset_name in ('cora','Cora','Pubmed','pubmed'):
-            train_mask, val_mask, test_mask = split_data_k(labels, k_shot=20,data_random_seed=data_random_seed)
+            train_mask, val_mask, test_mask = split_data_k(labels.cpu(), k_shot=20,data_random_seed=data_random_seed)
         else:
             rng = np.random.RandomState(data_random_seed)  # this will ensure the dataset will be split exactly the same
             indices = np.arange(len(x))
@@ -187,10 +168,7 @@ def linear_probing_for_transductive_node_classiifcation(model, graph,x, optimize
         best_val_epoch = 0
         best_model = None
         ####
-        if hasattr(graph, 'y') and graph.y is not None:
-            num_classes = graph.y.max().item() + 1
-        else:
-            num_classes = graph.ndata['label'].max().item() + 1
+
         model = LogisticRegression_nn(x.shape[1], num_classes)
         model.to(device)
         optimizer_f = create_optimizer("adam", model, lr=0.01, weight_decay=2e-4)
@@ -203,7 +181,7 @@ def linear_probing_for_transductive_node_classiifcation(model, graph,x, optimize
 
         for epoch in epoch_iter:
             model.train()
-            out = model(graph, x)
+            out = model(x)
             loss = criterion(out[train_mask], labels[train_mask])
             optimizer.zero_grad()
             loss.backward(retain_graph=True)
@@ -213,7 +191,7 @@ def linear_probing_for_transductive_node_classiifcation(model, graph,x, optimize
 
             with torch.no_grad():
                 model.eval()
-                pred = model(graph, x)
+                pred = model( x)
                 val_acc = accuracy(pred[val_mask], labels[val_mask])
                 val_loss = criterion(pred[val_mask], labels[val_mask])
                 test_acc = accuracy(pred[test_mask], labels[test_mask])
@@ -230,7 +208,7 @@ def linear_probing_for_transductive_node_classiifcation(model, graph,x, optimize
 
         best_model.eval()
         with torch.no_grad():
-            pred = best_model(graph, x)
+            pred = best_model(x)
             estp_test_acc = accuracy(pred[test_mask], labels[test_mask])
         if mute:
             print(
@@ -239,6 +217,7 @@ def linear_probing_for_transductive_node_classiifcation(model, graph,x, optimize
             print(
                 f"--- TestAcc: {test_acc:.4f}, early-stopping-TestAcc: {estp_test_acc:.4f}, Best ValAcc: {best_val_acc:.4f} in epoch {best_val_epoch} --- ")
 
-        accs.append(estp_test_acc)
+        final_accs_list.append(test_acc)
+        estp_test_acc_list.append(estp_test_acc)
     # (final_acc, es_acc, best_acc)
-    return accs
+    return final_accs_list, estp_test_acc_list

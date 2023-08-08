@@ -84,7 +84,7 @@ def main(args):
                                feature_type=args.feature_type, use_dgl = True , device = args.device)
     
     #graph.ndata['feat'] = scale_feats(graph.ndata['feat'].cpu()).to(args.device) # !the GraphMAE scaled feat
-    graph.ndata['feat'] = scale_feats(graph.ndata['feat'].cpu()).to('cpu')
+    # graph.ndata['feat'] = scale_feats(graph.ndata['feat'].cpu()).to('cpu')
     features = graph.ndata['feat'] 
     
     # graph, (num_features, num_classes) = load_dataset(dataset_name)
@@ -92,7 +92,8 @@ def main(args):
     (num_features, num_classes)= (features.shape[1],graph.ndata['label'].unique().size(0))
     args.num_features = num_features
 
-    acc_list = []
+    final_acc_list = []
+    early_stp_acc_list=[]
     for i, seed in enumerate(model_seeds):
         print(f"####### Run {i} for seed {seed}")
         set_random_seed(seed)
@@ -131,26 +132,32 @@ def main(args):
 
 
         #acc_list = node_classification_evaluation(model, graph, x, num_classes, lr_f, weight_decay_f,max_epoch_f, device,dataset_name=args.dataset,data_random_seeds=args.data_seeds,mute=False)
-        acc = eval.fit_logistic_regression_new(graph,model,args.dataset, data_random_seeds = data_seeds)
-        acc_list.extend(acc)
+        with torch.no_grad():
+            feat = model.embed(graph.to(device), x.to(device))
+            in_feat = x.shape[1]
+        
+        
+        final_acc , early_stp_acc = eval.fit_logistic_regression_new(features=feat,labels=graph.ndata['label'],data_random_seeds=args.data_seeds,dataset_name=args.dataset,device=device)
+        final_acc_list.extend(final_acc)
+        early_stp_acc_list.extend(early_stp_acc)
         if logger is not None:
             logger.finish()
 
-    final_acc, final_acc_std = np.mean(acc_list), np.std(acc_list)
-    #estp_acc, estp_acc_std = np.mean(estp_acc_list), np.std(estp_acc_list)
+    final_acc, final_acc_std = np.mean(final_acc_list), np.std(final_acc_list)
+    estp_acc, estp_acc_std = np.mean(early_stp_acc_list), np.std(early_stp_acc_list)
     print(f"# final_acc: {final_acc:.4f}±{final_acc_std:.4f}")
-    #print(f"# early-stopping_acc: {estp_acc:.4f}±{estp_acc_std:.4f}")
+    print(f"# early-stopping_acc: {estp_acc:.4f}±{estp_acc_std:.4f}")
 
-    mean_score = final_acc
-    std_score = final_acc_std
+    # mean_score = final_acc
+    # std_score = final_acc_std
     # Ensure the directory exists
-    os.makedirs(args.logdir, exist_ok=True)
+    # os.makedirs(args.logdir, exist_ok=True)
 
-    filename = f"final_score.txt"
-    with open(os.path.join(args.logdir, filename), 'w') as f:
-        f.write(f"Mean: {mean_score}\n")
-        f.write(f"Standard Deviation: {std_score}\n")
-    print(f"Final Score - Mean: {mean_score}, Standard Deviation: {std_score}")
+    # filename = f"final_score.txt"
+    # with open(os.path.join(args.logdir, filename), 'w') as f:
+    #     f.write(f"Mean: {mean_score}\n")
+    #     f.write(f"Standard Deviation: {std_score}\n")
+    # print(f"Final Score - Mean: {mean_score}, Standard Deviation: {std_score}")
 
 
 # Press the green button in the gutter to run the script.

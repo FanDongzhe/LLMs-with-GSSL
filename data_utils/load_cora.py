@@ -4,14 +4,14 @@ import random
 
 from torch_geometric.datasets import Planetoid
 import torch_geometric.transforms as T
-
+import sklearn
 
 # return cora dataset as pytorch geometric Data object together with 60/20/20 split, and list of cora IDs
 
 
 def get_cora_casestudy(SEED=0):
     data_X, data_Y, data_citeid, data_edges = parse_cora()
-    # data_X = sklearn.preprocessing.normalize(data_X, norm="l1")
+    data_X = sklearn.preprocessing.normalize(data_X, norm="l1")
 
     torch.manual_seed(SEED)
     if torch.cuda.is_available():

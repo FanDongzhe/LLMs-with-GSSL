@@ -100,7 +100,9 @@ def build_args():
     parser.add_argument("--feature_type", type=str, default="TA")
 
     parser.add_argument("--logdir", type=str, default="runs/cora")
-    parser.add_argument("--seeds", type=int, nargs="+", default=[0,1,2,3])
+    parser.add_argument("--data_seeds", type=int, nargs="+", default=[0])
+    parser.add_argument("--model_seeds", type=int, nargs="+", default=[0,1,2,3,4,5,6,7,8])
+    
     
     args = parser.parse_args()
     return args
