@@ -1,7 +1,6 @@
 import copy
 import logging
 import os
-
 from absl import app
 from absl import flags
 import torch
@@ -17,10 +16,10 @@ from bgrl import BGRL
 import sys
 sys.path.append("..")
 from data_utils.load import load_llm_feature_and_data
-from data_utils.logistic_regression_eval import fit_logistic_regression
+import data_utils.logistic_regression_eval as evaluate
 log = logging.getLogger(__name__)
 FLAGS = flags.FLAGS
-flags.DEFINE_integer('model_seed', None, 'Random seed used for model initialization and training.')
+flags.DEFINE_multi_integer('model_seeds', [0,1], 'Random seed used to generate train/val/test split.')
 flags.DEFINE_multi_integer('data_seeds', [0,1], 'Random seed used to generate train/val/test split.')
 #flags.DEFINE_integer('num_eval_splits', 2, 'Number of different train/test splits the model will be evaluated over.')
 
@@ -64,127 +63,129 @@ flags.DEFINE_bool('use_gpt', False, '.')
 flags.DEFINE_bool('use_BoW', True, '.')
 
 def main(argv):
-    # use CUDA_VISIBLE_DEVICES to select gpu
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    log.info('Using {} for training.'.format(device))
+    final_acc_list = []
+    early_stp_acc_list=[]
+    for model_seed in FLAGS.model_seeds:
+        # use CUDA_VISIBLE_DEVICES to select gpu
+        device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+        log.info('Using {} for training.'.format(device))
 
-    # set random seed
-    if FLAGS.model_seed is not None:
-        log.info('Random seed set to {}.'.format(FLAGS.model_seed))
-        set_random_seeds(random_seed=FLAGS.model_seed)
+        # set random seed
+        if model_seed is not None:
+            log.info('Random seed set to {}.'.format(model_seed))
+            set_random_seeds(random_seed=model_seed)
 
-    # create log directory
-    os.makedirs(FLAGS.logdir, exist_ok=True)
-    with open(os.path.join(FLAGS.logdir, 'config.cfg'), "w") as file:
-        file.write(FLAGS.flags_into_string())  # save config file
+        # create log directory
+        os.makedirs(FLAGS.logdir, exist_ok=True)
+        with open(os.path.join(FLAGS.logdir, 'config.cfg'), "w") as file:
+            file.write(FLAGS.flags_into_string())  # save config file
 
 
-    # load data
-    
-    dataset = load_llm_feature_and_data(
-        dataset_name = FLAGS.dataset, 
-        lm_model_name='microsoft/deberta-base',
-        feature_type=FLAGS.feature_type,
-        device=FLAGS.device,
-        use_BoW=FLAGS.use_BoW,)
-    #if FLAGS.dataset == 'ogbn-arxiv':
-        #dataset.edge_index,_ = to_edge_index(dataset.edge_index)
+        # load data
 
-    #num_eval_splits = FLAGS.num_eval_splits if FLAGS.dataset in ('cora', 'pubmed') else 1
-    data = dataset
-    data.x = data.x.float()
-    data = data.to(device)  # permanently move in gpy memory
+        dataset = load_llm_feature_and_data(
+            dataset_name = FLAGS.dataset,
+            lm_model_name='microsoft/deberta-base',
+            feature_type=FLAGS.feature_type,
+            device='cpu',
+            use_BoW=FLAGS.use_BoW,)
+        #if FLAGS.dataset == 'ogbn-arxiv':
+            #dataset.edge_index,_ = to_edge_index(dataset.edge_index)
 
-    # prepare transforms
-    transform_1 = get_graph_drop_transform(drop_edge_p=FLAGS.drop_edge_p_1, drop_feat_p=FLAGS.drop_feat_p_1)
-    transform_2 = get_graph_drop_transform(drop_edge_p=FLAGS.drop_edge_p_2, drop_feat_p=FLAGS.drop_feat_p_2)
+        #num_eval_splits = FLAGS.num_eval_splits if FLAGS.dataset in ('cora', 'pubmed') else 1
+        data = dataset
+        data.x = data.x.float()
+        data = data.to(device)  # permanently move in gpy memory
 
-    # build networks
-    input_size, representation_size = data.x.size(1), FLAGS.graph_encoder_layer[-1]
-    encoder = GCN([input_size] + FLAGS.graph_encoder_layer, batchnorm=True)   # 512, 256, 128
-    predictor = MLP_Predictor(representation_size, representation_size, hidden_size=FLAGS.predictor_hidden_size)
-    model: BGRL = BGRL(encoder, predictor).to(device)
+        # prepare transforms
+        transform_1 = get_graph_drop_transform(drop_edge_p=FLAGS.drop_edge_p_1, drop_feat_p=FLAGS.drop_feat_p_1)
+        transform_2 = get_graph_drop_transform(drop_edge_p=FLAGS.drop_edge_p_2, drop_feat_p=FLAGS.drop_feat_p_2)
 
-    # optimizer
-    optimizer = AdamW(model.trainable_parameters(), lr=FLAGS.lr, weight_decay=FLAGS.weight_decay)
+        # build networks
+        input_size, representation_size = data.x.size(1), FLAGS.graph_encoder_layer[-1]
+        encoder = GCN([input_size] + FLAGS.graph_encoder_layer, batchnorm=True)   # 512, 256, 128
+        predictor = MLP_Predictor(representation_size, representation_size, hidden_size=FLAGS.predictor_hidden_size)
+        model: BGRL = BGRL(encoder, predictor).to(device)
 
-    # scheduler
-    lr_scheduler = CosineDecayScheduler(FLAGS.lr, FLAGS.lr_warmup_epochs, FLAGS.epochs)
-    mm_scheduler = CosineDecayScheduler(1 - FLAGS.mm, 0, FLAGS.epochs)
+        # optimizer
+        optimizer = AdamW(model.trainable_parameters(), lr=FLAGS.lr, weight_decay=FLAGS.weight_decay)
 
-    # setup tensorboard and make custom layout
-    writer = SummaryWriter(FLAGS.logdir)
-    #layout = {'accuracy': {'accuracy/test': ['Multiline', [f'accuracy/test_{i}' for i in range(num_eval_splits)]]}}
-    #writer.add_custom_scalars(layout)
+        # scheduler
+        lr_scheduler = CosineDecayScheduler(FLAGS.lr, FLAGS.lr_warmup_epochs, FLAGS.epochs)
+        mm_scheduler = CosineDecayScheduler(1 - FLAGS.mm, 0, FLAGS.epochs)
 
-    def train(step):
-        model.train()
+        # setup tensorboard and make custom layout
+        writer = SummaryWriter(FLAGS.logdir)
+        #layout = {'accuracy': {'accuracy/test': ['Multiline', [f'accuracy/test_{i}' for i in range(num_eval_splits)]]}}
+        #writer.add_custom_scalars(layout)
 
-        # update learning rate
-        lr = lr_scheduler.get(step)
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = lr
+        def train(step):
+            model.train()
 
-        # update momentum
-        mm = 1 - mm_scheduler.get(step)
+            # update learning rate
+            lr = lr_scheduler.get(step)
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = lr
 
-        # forward
-        optimizer.zero_grad()
+            # update momentum
+            mm = 1 - mm_scheduler.get(step)
 
-        x1, x2 = transform_1(data), transform_2(data)
+            # forward
+            optimizer.zero_grad()
 
-        q1, y2 = model(x1, x2)
-        q2, y1 = model(x2, x1)
+            x1, x2 = transform_1(data), transform_2(data)
 
-        loss = 2 - cosine_similarity(q1, y2.detach(), dim=-1).mean() - cosine_similarity(q2, y1.detach(), dim=-1).mean()
-        loss.backward()
+            q1, y2 = model(x1, x2)
+            q2, y1 = model(x2, x1)
 
-        # update online network
-        optimizer.step()
-        # update target network
-        model.update_target_network(mm)
+            loss = 2 - cosine_similarity(q1, y2.detach(), dim=-1).mean() - cosine_similarity(q2, y1.detach(), dim=-1).mean()
+            loss.backward()
 
-        # log scalars
-        writer.add_scalar('params/lr', lr, step)
-        writer.add_scalar('params/mm', mm, step)
-        writer.add_scalar('train/loss', loss, step)
+            # update online network
+            optimizer.step()
+            # update target network
+            model.update_target_network(mm)
 
-    def eval(epoch):
-        # make temporary copy of encoder
-        tmp_encoder = copy.deepcopy(model.online_encoder).eval()
-        representations, labels = compute_representations(tmp_encoder, dataset, device)
+            # log scalars
+            writer.add_scalar('params/lr', lr, step)
+            writer.add_scalar('params/mm', mm, step)
+            writer.add_scalar('train/loss', loss, step)
 
-        # evaluate
-        #scores = fit_logistic_regression(representations.cpu().numpy(), labels.cpu().numpy(),FLAGS.dataset, data_random_seeds = FLAGS.data_seeds)
-        scores = fit_logistic_regression_new(data,FLAGS.dataset, data_random_seeds = FLAGS.data_seeds)
+        def eval(epoch):
+            # make temporary copy of encoder
+            tmp_encoder = copy.deepcopy(model.online_encoder).eval()
+            representations, labels = compute_representations(tmp_encoder, dataset, device)
 
-        for i, score in enumerate(scores):
-            writer.add_scalar(f'accuracy/test_{i}', score, epoch)
-            #print(f'Score {i}: {score}')
-        return scores
-    for epoch in tqdm(range(1, FLAGS.epochs + 1)):
-        train(epoch-1)
-        if epoch % FLAGS.eval_epochs == 0:
-            eval(epoch)
+            # evaluate
+            #scores = fit_logistic_regression(representations.cpu().numpy(), labels.cpu().numpy(),FLAGS.dataset, data_random_seeds = FLAGS.data_seeds)
+            #scores = fit_logistic_regression_new(data,FLAGS.dataset, data_random_seeds = FLAGS.data_seeds)
 
-    # save encoder weights
-    torch.save({'model': model.online_encoder.state_dict()}, os.path.join(FLAGS.logdir, f'{FLAGS.dataset}.pt'))
-    final_scores = eval(99999)
-    print(final_scores)
-    mean_score = np.mean(final_scores)
-    std_score = np.std(final_scores)
+            final_acc, early_stp_acc = evaluate.fit_logistic_regression_new(features=representations, labels=labels,
+                                                                        data_random_seeds=FLAGS.data_seeds,
+                                                                        dataset_name=FLAGS.dataset, device=device,mute=True)
 
-    # Ensure the directory exists
-    os.makedirs(FLAGS.logdir, exist_ok=True)
+            for i, score in enumerate(early_stp_acc):
+                writer.add_scalar(f'accuracy/test_{i}', score, epoch)
+                #print(f'Score {i}: {score}')
+            return final_acc,early_stp_acc
 
-    filename = f"final_score.txt"
-    with open(os.path.join(FLAGS.logdir, filename), 'w') as f:
-        f.write(f"Mean: {mean_score}\n")
-        f.write(f"Standard Deviation: {std_score}\n")
-    print(f"Final Score - Mean: {mean_score}, Standard Deviation: {std_score}")
+        final_acc_list
+        for epoch in tqdm(range(1, FLAGS.epochs + 1)):
+            train(epoch-1)
 
-    #return final_score
-    #torch.save({'model': model.online_encoder.state_dict()}, os.path.join(FLAGS.logdir, 'Cora.pt'))
+        # save encoder weights
+        torch.save({'model': model.online_encoder.state_dict()}, os.path.join(FLAGS.logdir, f'{FLAGS.dataset}.pt'))
+        final_acc,early_stp_acc = eval(99999)
+        final_acc_list.append(final_acc)
+        early_stp_acc_list.append(early_stp_acc)
+
+
+    final_acc, final_acc_std = np.mean(final_acc_list), np.std(final_acc_list)
+    estp_acc, estp_acc_std = np.mean(early_stp_acc_list), np.std(early_stp_acc_list)
+    print(f"# final_acc: {final_acc:.4f}±{final_acc_std:.4f}")
+    print(f"# early-stopping_acc: {estp_acc:.4f}±{estp_acc_std:.4f}")
+
+
 
 
 if __name__ == "__main__":
