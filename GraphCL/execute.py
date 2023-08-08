@@ -24,7 +24,8 @@ parser = argparse.ArgumentParser("My DGI")
 parser.add_argument('--dataset',          type=str,           default="",                help='data')
 parser.add_argument('--aug_type',         type=str,           default="",                help='aug type: mask or edge')
 parser.add_argument('--drop_percent',     type=float,         default=0.1,               help='drop percent')
-parser.add_argument("--seeds", type=int, nargs="+", default=[0,1,2,3])
+parser.add_argument("--data_seeds", type=int, nargs="+", default=[0,1])
+parser.add_argument("--model_seeds", type=int, nargs="+", default=[0,1])
 parser.add_argument('--gpu',              type=int,           default=0,                 help='gpu')
 parser.add_argument('--save_name',        type=str,           default='try.pkl',                help='save ckpt name')
 parser.add_argument('--k_shot',        type=float,           default='5',                help='number of samples per class')
@@ -62,178 +63,179 @@ adj, features, labels, idx_train, idx_val, idx_test,nb_nodes,ft_size,nb_classes 
 features = process.preprocess_features(features)
 features = torch.FloatTensor(features.todense()[np.newaxis])
 
-
-def one_hot_to_label(one_hot_encoding):
-    return np.argmax(one_hot_encoding, axis=1)
-labels_eavl = one_hot_to_label(labels)
+labels_orig = labels
+labels_for_eval = torch.from_numpy(np.argmax(labels_orig, axis=1))
 
 
+final_acc_list = []
+early_stp_acc_list = []
+for model_seed in args.model_seeds:
 
-'''
-------------------------------------------------------------
-edge node mask subgraph
-------------------------------------------------------------
-'''
-print("Begin Aug:[{}]".format(args.aug_type))
-if args.aug_type == 'edge':
+    '''
+    ------------------------------------------------------------
+    edge node mask subgraph
+    ------------------------------------------------------------
+    '''
+    print("Begin Aug:[{}]".format(args.aug_type))
+    if args.aug_type == 'edge':
 
-    aug_features1 = features
-    aug_features2 = features
+        aug_features1 = features
+        aug_features2 = features
 
-    aug_adj1 = aug.aug_random_edge(adj, drop_percent=drop_percent) # random drop edges
-    aug_adj2 = aug.aug_random_edge(adj, drop_percent=drop_percent) # random drop edges
+        aug_adj1 = aug.aug_random_edge(adj, drop_percent=drop_percent) # random drop edges
+        aug_adj2 = aug.aug_random_edge(adj, drop_percent=drop_percent) # random drop edges
 
-elif args.aug_type == 'node':
+    elif args.aug_type == 'node':
 
-    aug_features1, aug_adj1 = aug.aug_drop_node(features, adj, drop_percent=drop_percent)
-    aug_features2, aug_adj2 = aug.aug_drop_node(features, adj, drop_percent=drop_percent)
+        aug_features1, aug_adj1 = aug.aug_drop_node(features, adj, drop_percent=drop_percent)
+        aug_features2, aug_adj2 = aug.aug_drop_node(features, adj, drop_percent=drop_percent)
 
-elif args.aug_type == 'subgraph':
+    elif args.aug_type == 'subgraph':
 
-    aug_features1, aug_adj1 = aug.aug_subgraph(features, adj, drop_percent=drop_percent)
-    aug_features2, aug_adj2 = aug.aug_subgraph(features, adj, drop_percent=drop_percent)
+        aug_features1, aug_adj1 = aug.aug_subgraph(features, adj, drop_percent=drop_percent)
+        aug_features2, aug_adj2 = aug.aug_subgraph(features, adj, drop_percent=drop_percent)
 
-elif args.aug_type == 'mask':
+    elif args.aug_type == 'mask':
 
-    aug_features1 = aug.aug_random_mask(features,  drop_percent=drop_percent)
-    aug_features2 = aug.aug_random_mask(features,  drop_percent=drop_percent)
+        aug_features1 = aug.aug_random_mask(features,  drop_percent=drop_percent)
+        aug_features2 = aug.aug_random_mask(features,  drop_percent=drop_percent)
 
-    aug_adj1 = adj
-    aug_adj2 = adj
+        aug_adj1 = adj
+        aug_adj2 = adj
 
-else:
-    assert False
-
-
-
-'''
-------------------------------------------------------------
-'''
-
-adj = process.normalize_adj(adj + sp.eye(adj.shape[0]))
-aug_adj1 = process.normalize_adj(aug_adj1 + sp.eye(aug_adj1.shape[0]))
-aug_adj2 = process.normalize_adj(aug_adj2 + sp.eye(aug_adj2.shape[0]))
-
-if sparse:
-    sp_adj = process.sparse_mx_to_torch_sparse_tensor(adj)
-    sp_aug_adj1 = process.sparse_mx_to_torch_sparse_tensor(aug_adj1)
-    sp_aug_adj2 = process.sparse_mx_to_torch_sparse_tensor(aug_adj2)
-
-else:
-    adj = (adj + sp.eye(adj.shape[0])).todense()
-    aug_adj1 = (aug_adj1 + sp.eye(aug_adj1.shape[0])).todense()
-    aug_adj2 = (aug_adj2 + sp.eye(aug_adj2.shape[0])).todense()
-
-
-'''
-------------------------------------------------------------
-mask
-------------------------------------------------------------
-'''
-
-'''
-------------------------------------------------------------
-'''
-if not sparse:
-    adj = torch.FloatTensor(adj[np.newaxis])
-    aug_adj1 = torch.FloatTensor(aug_adj1[np.newaxis])
-    aug_adj2 = torch.FloatTensor(aug_adj2[np.newaxis])
-
-labels = torch.FloatTensor(labels[np.newaxis])
-idx_train = torch.LongTensor(idx_train)
-idx_val = torch.LongTensor(idx_val)
-idx_test = torch.LongTensor(idx_test)
-
-
-model = DGI(ft_size, hid_units, nonlinearity)
-optimiser = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=l2_coef)
-
-if torch.cuda.is_available():
-    print('Using CUDA')
-    model.cuda()
-    features = features.cuda()
-    aug_features1 = aug_features1.cuda()
-    aug_features2 = aug_features2.cuda()
-    if sparse:
-        sp_adj = sp_adj.cuda()
-        sp_aug_adj1 = sp_aug_adj1.cuda()
-        sp_aug_adj2 = sp_aug_adj2.cuda()
     else:
-        adj = adj.cuda()
-        aug_adj1 = aug_adj1.cuda()
-        aug_adj2 = aug_adj2.cuda()
+        assert False
 
-    labels = labels.cuda()
-    idx_train = idx_train.cuda()
-    idx_val = idx_val.cuda()
-    idx_test = idx_test.cuda()
-    #idx_test = idx_test.to(device)
 
-b_xent = nn.BCEWithLogitsLoss()
-xent = nn.CrossEntropyLoss()
-cnt_wait = 0
-best = 1e9
-best_t = 0
 
-for epoch in range(nb_epochs):
+    '''
+    ------------------------------------------------------------
+    '''
 
-    model.train()
-    optimiser.zero_grad()
+    adj = process.normalize_adj(adj + sp.eye(adj.shape[0]))
+    aug_adj1 = process.normalize_adj(aug_adj1 + sp.eye(aug_adj1.shape[0]))
+    aug_adj2 = process.normalize_adj(aug_adj2 + sp.eye(aug_adj2.shape[0]))
 
-    idx = np.random.permutation(nb_nodes)
-    shuf_fts = features[:, idx, :]
+    if sparse:
+        sp_adj = process.sparse_mx_to_torch_sparse_tensor(adj)
+        sp_aug_adj1 = process.sparse_mx_to_torch_sparse_tensor(aug_adj1)
+        sp_aug_adj2 = process.sparse_mx_to_torch_sparse_tensor(aug_adj2)
 
-    lbl_1 = torch.ones(batch_size, nb_nodes)
-    lbl_2 = torch.zeros(batch_size, nb_nodes)
-    lbl = torch.cat((lbl_1, lbl_2), 1)
+    else:
+        adj = (adj + sp.eye(adj.shape[0])).todense()
+        aug_adj1 = (aug_adj1 + sp.eye(aug_adj1.shape[0])).todense()
+        aug_adj2 = (aug_adj2 + sp.eye(aug_adj2.shape[0])).todense()
+
+
+    '''
+    ------------------------------------------------------------
+    mask
+    ------------------------------------------------------------
+    '''
+
+    '''
+    ------------------------------------------------------------
+    '''
+    if not sparse:
+        adj = torch.FloatTensor(adj[np.newaxis])
+        aug_adj1 = torch.FloatTensor(aug_adj1[np.newaxis])
+        aug_adj2 = torch.FloatTensor(aug_adj2[np.newaxis])
+
+    labels = torch.FloatTensor(labels[np.newaxis])
+    idx_train = torch.LongTensor(idx_train)
+    idx_val = torch.LongTensor(idx_val)
+    idx_test = torch.LongTensor(idx_test)
+
+
+
+    model = DGI(ft_size, hid_units, nonlinearity)
+    optimiser = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=l2_coef)
 
     if torch.cuda.is_available():
-        shuf_fts = shuf_fts.cuda()
-        lbl = lbl.cuda()
+        print('Using CUDA')
+        model.cuda()
+        features = features.cuda()
+        aug_features1 = aug_features1.cuda()
+        aug_features2 = aug_features2.cuda()
+        if sparse:
+            sp_adj = sp_adj.cuda()
+            sp_aug_adj1 = sp_aug_adj1.cuda()
+            sp_aug_adj2 = sp_aug_adj2.cuda()
+        else:
+            adj = adj.cuda()
+            aug_adj1 = aug_adj1.cuda()
+            aug_adj2 = aug_adj2.cuda()
 
-    logits = model(features, shuf_fts, aug_features1, aug_features2,
-                   sp_adj if sparse else adj,
-                   sp_aug_adj1 if sparse else aug_adj1,
-                   sp_aug_adj2 if sparse else aug_adj2,
-                   sparse, None, None, None, aug_type=aug_type)
+        labels = labels.cuda()
+        idx_train = idx_train.cuda()
+        idx_val = idx_val.cuda()
+        idx_test = idx_test.cuda()
+        #idx_test = idx_test.to(device)
 
-    loss = b_xent(logits, lbl)
-    print('Loss:[{:.4f}]'.format(loss.item()))
+    b_xent = nn.BCEWithLogitsLoss()
+    xent = nn.CrossEntropyLoss()
+    cnt_wait = 0
+    best = 1e9
+    best_t = 0
 
-    if loss < best:
-        best = loss
-        best_t = epoch
-        cnt_wait = 0
-        torch.save(model.state_dict(), args.save_name)
-    else:
-        cnt_wait += 1
+    for epoch in range(nb_epochs):
 
-    if cnt_wait == patience:
-        print('Early stopping!')
-        break
+        model.train()
+        optimiser.zero_grad()
 
-    loss.backward()
-    optimiser.step()
+        idx = np.random.permutation(nb_nodes)
+        shuf_fts = features[:, idx, :]
 
-print('Loading {}th epoch'.format(best_t))
-model.load_state_dict(torch.load(args.save_name))
+        lbl_1 = torch.ones(batch_size, nb_nodes)
+        lbl_2 = torch.zeros(batch_size, nb_nodes)
+        lbl = torch.cat((lbl_1, lbl_2), 1)
 
-embeds, _ = model.embed(features, sp_adj if sparse else adj, sparse, None)
-accs = []
-accs = eval.fit_logistic_regression(embeds[0,].cpu().numpy(),labels_eavl,args.dataset)
-mean_score = np.mean(accs)
-std_score = np.std(accs)
+        if torch.cuda.is_available():
+            shuf_fts = shuf_fts.cuda()
+            lbl = lbl.cuda()
 
-# Ensure the directory exists
-os.makedirs(args.logdir, exist_ok=True)
+        logits = model(features, shuf_fts, aug_features1, aug_features2,
+                       sp_adj if sparse else adj,
+                       sp_aug_adj1 if sparse else aug_adj1,
+                       sp_aug_adj2 if sparse else aug_adj2,
+                       sparse, None, None, None, aug_type=aug_type)
 
-filename = f"final_score.txt"
-with open(os.path.join(args.logdir, filename), 'w') as f:
-    f.write(f"Mean: {mean_score}\n")
-    f.write(f"Standard Deviation: {std_score}\n")
-print(f"Final Score - Mean: {mean_score}, Standard Deviation: {std_score}")
+        loss = b_xent(logits, lbl)
+        print('Loss:[{:.4f}]'.format(loss.item()))
 
-#打印accs数组的均值和方差
-print('Test acc:[{:.4f}]'.format(np.mean(accs)))
-print('Test std:[{:.4f}]'.format(np.std(accs)))
+        if loss < best:
+            best = loss
+            best_t = epoch
+            cnt_wait = 0
+            torch.save(model.state_dict(), args.save_name)
+        else:
+            cnt_wait += 1
+
+        if cnt_wait == patience:
+            print('Early stopping!')
+            break
+
+        loss.backward()
+        optimiser.step()
+
+    print('Loading {}th epoch'.format(best_t))
+    model.load_state_dict(torch.load(args.save_name))
+
+    embeds, _ = model.embed(features, sp_adj if sparse else adj, sparse, None)
+
+    accs = []
+    final_acc,early_stp_acc = [],[]
+    features_for_eval = embeds.squeeze()
+
+    final_acc, early_stp_acc = eval.fit_logistic_regression_new(features=features_for_eval, labels=labels_for_eval,
+                                                                data_random_seeds=args.data_seeds,
+                                                                dataset_name=args.dataset, device=device)
+    final_acc_list.extend(final_acc)
+    early_stp_acc_list.extend(early_stp_acc)
+
+
+final_acc, final_acc_std = np.mean(final_acc_list), np.std(final_acc_list)
+estp_acc, estp_acc_std = np.mean(early_stp_acc_list), np.std(early_stp_acc_list)
+print(f"# final_acc: {final_acc:.4f}±{final_acc_std:.4f}")
+print(f"# early-stopping_acc: {estp_acc:.4f}±{estp_acc_std:.4f}")
 
