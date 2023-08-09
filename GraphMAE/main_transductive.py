@@ -80,8 +80,9 @@ def main(args):
     use_scheduler = args.scheduler
 
 
-    graph = load_llm_feature_and_data(dataset_name=args.dataset,LLM_feat_seed=data_seeds[0],lm_model_name='microsoft/deberta-base',
-                               feature_type=args.feature_type, use_dgl = True , device = args.device)
+    graph = load_llm_feature_and_data(dataset_name=args.dataset,LLM_feat_seed=model_seeds[0],lm_model_name='microsoft/deberta-base',
+                               feature_type=args.feature_type, use_dgl = True , device = args.device , 
+                               sclae_feat= True if dataset_name == "ogbn-arxiv" else False )
     
     #graph.ndata['feat'] = scale_feats(graph.ndata['feat'].cpu()).to(args.device) # !the GraphMAE scaled feat
     # graph.ndata['feat'] = scale_feats(graph.ndata['feat'].cpu()).to('cpu')

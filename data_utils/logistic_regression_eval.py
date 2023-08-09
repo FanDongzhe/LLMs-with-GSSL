@@ -139,6 +139,7 @@ def fit_logistic_regression_new(features, labels , data_random_seeds, dataset_na
     criterion = torch.nn.CrossEntropyLoss()
 
     x = features.to(device)
+    labels = labels.to(device)
     
     num_classes =labels.max().item() + 1
     

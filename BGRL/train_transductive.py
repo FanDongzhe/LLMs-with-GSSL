@@ -9,7 +9,7 @@ from torch.optim import AdamW
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 import numpy as np
-#from torch_geometric.utils.sparse import to_edge_index
+from torch_geometric.utils.sparse import to_edge_index
 import json
 from bgrl import *
 from bgrl import BGRL
@@ -19,7 +19,7 @@ from data_utils.load import load_llm_feature_and_data
 import data_utils.logistic_regression_eval as evaluate
 log = logging.getLogger(__name__)
 FLAGS = flags.FLAGS
-flags.DEFINE_multi_integer('model_seeds', [0,1], 'Random seed used to generate train/val/test split.')
+flags.DEFINE_multi_integer('model_seeds', [0,1,2,3,4], 'Random seed used to generate train/val/test split.')
 flags.DEFINE_multi_integer('data_seeds', [0,1], 'Random seed used to generate train/val/test split.')
 #flags.DEFINE_integer('num_eval_splits', 2, 'Number of different train/test splits the model will be evaluated over.')
 
@@ -89,8 +89,8 @@ def main(argv):
             feature_type=FLAGS.feature_type,
             device='cpu',
             use_BoW=FLAGS.use_BoW,)
-        #if FLAGS.dataset == 'ogbn-arxiv':
-            #dataset.edge_index,_ = to_edge_index(dataset.edge_index)
+        if FLAGS.dataset == 'ogbn-arxiv':
+            dataset.edge_index,_ = to_edge_index(dataset.edge_index)
 
         #num_eval_splits = FLAGS.num_eval_splits if FLAGS.dataset in ('cora', 'pubmed') else 1
         data = dataset

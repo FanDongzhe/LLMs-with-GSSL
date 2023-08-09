@@ -25,7 +25,7 @@ parser.add_argument('--dataset',          type=str,           default="",       
 parser.add_argument('--aug_type',         type=str,           default="",                help='aug type: mask or edge')
 parser.add_argument('--drop_percent',     type=float,         default=0.1,               help='drop percent')
 parser.add_argument("--data_seeds", type=int, nargs="+", default=[0,1])
-parser.add_argument("--model_seeds", type=int, nargs="+", default=[0,1])
+parser.add_argument("--model_seeds", type=int, nargs="+", default=[0,1,2,3,4])
 parser.add_argument('--gpu',              type=int,           default=0,                 help='gpu')
 parser.add_argument('--save_name',        type=str,           default='try.pkl',                help='save ckpt name')
 parser.add_argument('--k_shot',        type=float,           default='5',                help='number of samples per class')
@@ -47,7 +47,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
 
 # training params
 batch_size = 1
-nb_epochs = 2
+nb_epochs = 10000
 patience = 20
 lr = 0.001
 l2_coef = 0.0
@@ -57,19 +57,25 @@ sparse = True
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 nonlinearity = 'prelu' # special name to separate parameters
-adj, features, labels, idx_train, idx_val, idx_test,nb_nodes,ft_size,nb_classes = process.load_data(dataset,device=device,feature_type=args.feature_type)
-# adj, features, labels, idx_train, idx_val, idx_test,nb_nodes,ft_size = process.load_data(dataset,device=device,feature_type=args.feature_type)
 
-features = process.preprocess_features(features)
-features = torch.FloatTensor(features.todense()[np.newaxis])
-
-labels_orig = labels
-labels_for_eval = torch.from_numpy(np.argmax(labels_orig, axis=1))
 
 
 final_acc_list = []
 early_stp_acc_list = []
 for model_seed in args.model_seeds:
+    random.seed(model_seed)
+    np.random.seed(model_seed)
+    torch.manual_seed(model_seed)
+    torch.cuda.manual_seed(model_seed)
+
+    adj, features, labels, idx_train, idx_val, idx_test,nb_nodes,ft_size,nb_classes = process.load_data(dataset,device=device,feature_type=args.feature_type)
+    # adj, features, labels, idx_train, idx_val, idx_test,nb_nodes,ft_size = process.load_data(dataset,device=device,feature_type=args.feature_type)
+
+    features = process.preprocess_features(features)
+    features = torch.FloatTensor(features.todense()[np.newaxis])
+
+    labels_orig = labels
+    labels_for_eval = torch.from_numpy(np.argmax(labels_orig, axis=1))
 
     '''
     ------------------------------------------------------------
