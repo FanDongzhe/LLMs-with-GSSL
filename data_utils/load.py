@@ -3,10 +3,15 @@ import json
 import torch
 import csv
 import numpy as np 
+import dgl
 from data_utils.dataset import CustomDGLDataset
 from sklearn.preprocessing import StandardScaler
 from torch_geometric.utils import add_self_loops,remove_self_loops
+from torch_geometric.data import Data
 
+def bump(g):
+    return Data.from_dict(g.__dict__)
+            
 def scale_feats(x):
     scaler = StandardScaler()
     feats = x.numpy()
@@ -66,11 +71,64 @@ def load_data(dataset, use_dgl=False, use_text=False, use_gpt=False, seed=0):
 
     return data, text
 
+def load_amazon_data(dataset_name, feature_type, use_dgl):
+    assert feature_type in ["BOW","W2V"], f"only BOW and W2V two kind of features in amazon data"
+    if dataset_name == 'amazon-computers':
+        '''
+        csv_dir = 'C:/Users/YI/Desktop/dataset/computers/Computers_Final_with_W2V_embeddings.csv'
+        data = build_data_from_csv(csv_dir)
+        '''
+        if feature_type=="BOW":
+            data_path = '../dataset/computers/Computers_Final_with_BoW_embeddings.pt'
+        else:
+            data_path = '../dataset/computers/Computers_Final_with_W2V_embeddings.pt'
+        data = torch.load(data_path)
+    elif dataset_name == 'amazon-photo':
+        '''
+        csv_dir = 'C:/Users/YI/Desktop/dataset/photo/Photo_Final_with_W2V_embeddings.csv'
+        data = build_data_from_csv(csv_dir)
+        '''
+        if feature_type=="BOW":
+            data_path = '../dataset/photo/Photo_Final_with_BoW_embeddings.pt'
+        else:
+            data_path = '../dataset/photo/Photo_Final_with_W2V_embeddings.pt'
+        data = torch.load(data_path)
+    elif dataset_name == 'amazon-history':
+        '''
+        csv_dir = 'C:/Users/YI/Desktop/dataset/history/History_Final_with_BoW_embeddings.csv'
+        data = build_data_from_csv(csv_dir)
+        '''
+        if feature_type=="BOW":
+            data_path = '../dataset/history/History_Final_with_BoW_embeddings.pt'
+        else:
+            data_path = '../dataset/history/History_Final_with_W2V_embeddings.pt'
+
+        #load old version pyg data
+        data = torch.load(data_path)
+        data = bump(data)
+    else:
+        assert False, "no such amazon dataset"
+    
+    #load old version pyg data
+    data = torch.load(data_path)
+    data = bump(data)
+    
+    if use_dgl:
+        g = dgl.DGLGraph()
+        edge_index = data.edge_index
+        g.add_nodes(data.num_nodes)
+        g.add_edges(edge_index[0], edge_index[1])
+        g.ndata['feat'] = torch.FloatTensor(data.x)
+        g.ndata['label'] = torch.LongTensor(data.y).squeeze()
+        return g
+    
+    return data
+        
 def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_feat_seed = 0, lm_model_name="microsoft/deberta-base",
-                              device = 0 , sclae_feat = False,use_BoW = True):
+                              device = 0 , sclae_feat = False):
         '''
         args:
-            feature_type: TA or E or P 
+            feature_type: TA or E or P or Bow or Wov
             lm_model_name: "microsoft/deberta-base"
             device: gpu index 
         
@@ -79,43 +137,24 @@ def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_f
         note : remove the seed for load_data since we will unify the split 
         
         '''
+        assert feature_type.upper() in ["TA","P","E","BOW","W2V"], ValueError(feature_type)
+        
         seed = LLM_feat_seed
         # ! Load data from ogb
         if dataset_name in ('cora', 'pubmed', 'ogbn-arxiv', 'Cora', 'Pubmed','arxiv'):                
             data = load_data(dataset_name, use_dgl=use_dgl, use_text=False)
-        elif dataset_name == 'amazon-computers':
-            '''
-            csv_dir = 'C:/Users/YI/Desktop/dataset/computers/Computers_Final_with_W2V_embeddings.csv'
-            data = build_data_from_csv(csv_dir)
-            '''
-            if use_BoW:
-                data_path = 'dataset/computers/Computers_Final_with_BoW_embeddings.pt'
-            else:
-                data_path = 'dataset/computers/Computers_Final_with_W2V_embeddings.pt'
-            data = torch.load(data_path)
-        elif dataset_name == 'amazon-photo':
-            '''
-            csv_dir = 'C:/Users/YI/Desktop/dataset/photo/Photo_Final_with_W2V_embeddings.csv'
-            data = build_data_from_csv(csv_dir)
-            '''
-            if use_BoW:
-                data_path = 'dataset/photo/Photo_Final_with_BoW_embeddings.pt'
-            else:
-                data_path = 'dataset/photo/Photo_Final_with_W2V_embeddings.pt'
-            data = torch.load(data_path)
-        elif dataset_name == 'amazon-history':
-            '''
-            csv_dir = 'C:/Users/YI/Desktop/dataset/history/History_Final_with_BoW_embeddings.csv'
-            data = build_data_from_csv(csv_dir)
-            '''
-            if use_BoW:
-                data_path = 'dataset/history/History_Final_with_BoW_embeddings.pt'
-            else:
-                data_path = 'dataset/history/History_Final_with_W2V_embeddings.pt'
-            data = torch.load(data_path)
-        
+        elif "amazon" in dataset_name:
+            data = load_amazon_data(dataset_name, feature_type.upper(), use_dgl)
+        else:
+            raise ValueError(dataset_name) 
+
+
         if  use_dgl:
-            data=data[0]
+            try:
+                data=data[0]
+            except:
+                pass # self defined data skip this procedure
+                
             num_nodes = data.num_nodes()
             data.x = data.ndata['feat'] # ref https://github.com/XiaoxinHe/TAPE/blob/241c93b735dcebbe2853414395c1559d5c2ce202/core/GNNs/dgl_gnn_trainer.py#L39C8-L39C8
             data = data.remove_self_loop().add_self_loop() # ! dgl add_self_loop will duplicate self_loop
