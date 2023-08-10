@@ -199,6 +199,9 @@ def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_f
             print("Loading top-k prediction features ...")
             features = load_gpt_preds(dataset_name, topk)
             features=features.float()
+        elif feature_type == 'BOW' or 'W2V':
+            print("Loading Amazon Dataset ...")
+            features = data.x
         else:
             print(
                 f'Feature type {feature_type} not supported. Loading OGB features...')
