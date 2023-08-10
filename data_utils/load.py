@@ -128,7 +128,7 @@ def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_f
                               device = 0 , sclae_feat = False):
         '''
         args:
-            feature_type: TA or E or P or Bow or Wov
+            feature_type: TA or E or P or Bow or Wov or ogb
             lm_model_name: "microsoft/deberta-base"
             device: gpu index 
         
@@ -137,7 +137,7 @@ def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_f
         note : remove the seed for load_data since we will unify the split 
         
         '''
-        assert feature_type.upper() in ["TA","P","E","BOW","W2V"], ValueError(feature_type)
+        assert feature_type.upper() in ["TA","P","E","BOW","W2V","OGB"], ValueError(feature_type)
         
         seed = LLM_feat_seed
         # ! Load data from ogb
