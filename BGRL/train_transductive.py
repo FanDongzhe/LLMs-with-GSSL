@@ -25,7 +25,7 @@ flags.DEFINE_multi_integer('data_seeds', [0,1], 'Random seed used to generate tr
 
 # Dataset.
 flags.DEFINE_enum('dataset', 'cora',
-                  ['cora',  'pubmed','ogbn-arxiv','amazon-photo'],
+                  ['cora',  'pubmed','ogbn-arxiv','amazon-photo','amazon-computers',"amazon-history"],
                   'Which graph dataset to use.')
 flags.DEFINE_string('dataset_dir', './data', 'Where the dataset resides.')
 flags.DEFINE_string('feature_type', 'TA', 'LLM feature type')
@@ -87,8 +87,8 @@ def main(argv):
             dataset_name = FLAGS.dataset,
             lm_model_name='microsoft/deberta-base',
             feature_type=FLAGS.feature_type,
-            device='cpu',
-            use_BoW=FLAGS.use_BoW,)
+            device=device,
+            )
         if FLAGS.dataset == 'ogbn-arxiv':
             dataset.edge_index,_ = to_edge_index(dataset.edge_index)
 
