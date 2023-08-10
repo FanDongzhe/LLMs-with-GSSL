@@ -241,7 +241,7 @@ def main():
             # data = dataset[0]
             pass
 
-    elif args.dataset in {'Cora', 'Citeseer', 'Pubmed'}:
+    elif args.dataset in {'Cora', 'Citeseer', 'Pubmed'} or 'amazon' in args.dataset:
         data = load_llm_feature_and_data(
             dataset_name = args.dataset.lower(), 
             lm_model_name='microsoft/deberta-base',

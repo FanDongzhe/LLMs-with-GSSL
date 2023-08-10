@@ -201,9 +201,9 @@ def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_f
             features=features.float()
         else:
             print(
-                f'Feature type {feature_type} not supported. Loading OGB features...')
-            feature_type = 'ogb'
+                f'Feature type {feature_type} is not TAPE skip load LLM feature')
             features = data.x
+            
         if use_dgl:
             data.ndata['feat'] = features
         else:
