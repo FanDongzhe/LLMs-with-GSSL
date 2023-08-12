@@ -131,7 +131,7 @@ def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_f
                               device = 0 , sclae_feat = False):
         '''
         args:
-            feature_type: TA or E or P or Bow or Wov
+            feature_type: TA or E or P or Bow or Wov or ogb
             lm_model_name: "microsoft/deberta-base"
             device: gpu index 
         
@@ -202,6 +202,9 @@ def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_f
             print("Loading top-k prediction features ...")
             features = load_gpt_preds(dataset_name, topk)
             features=features.float()
+        elif feature_type == 'BOW' or 'W2V':
+            print("Loading Amazon Dataset ...")
+            features = data.x
         else:
             print(
                 f'Feature type {feature_type} is not TAPE skip load LLM feature')
