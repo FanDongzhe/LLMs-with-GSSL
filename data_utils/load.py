@@ -113,6 +113,9 @@ def load_amazon_data(dataset_name, feature_type, use_dgl):
     data = torch.load(data_path)
     data = bump(data)
     
+    if isinstance(data.x,torch.LongTensor):
+        data.x=data.x.float() # special preprocess for amazon-photo-BOW
+    
     if use_dgl:
         g = dgl.DGLGraph()
         edge_index = data.edge_index
@@ -137,7 +140,7 @@ def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_f
         note : remove the seed for load_data since we will unify the split 
         
         '''
-        assert feature_type.upper() in ["TA","P","E","BOW","W2V"], ValueError(feature_type)
+        assert feature_type.upper() in ["TA","P","E","BOW","W2V","OGB"], ValueError(feature_type)
         
         seed = LLM_feat_seed
         # ! Load data from ogb

@@ -102,6 +102,8 @@ def build_args():
     parser.add_argument("--logdir", type=str, default="runs/cora")
     parser.add_argument("--data_seeds", type=int, nargs="+", default=[0,1])
     parser.add_argument("--model_seeds", type=int, nargs="+", default=[0,1,2,3,4])
+    parser.add_argument("--eval_multi_k", action="store_true")
+    
     
     
     args = parser.parse_args()

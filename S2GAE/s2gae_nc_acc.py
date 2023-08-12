@@ -27,7 +27,7 @@ sys.path.append("..") # TODO merge TAPE into current repo
 from data_utils.load import load_llm_feature_and_data
 from torch_geometric.utils.sparse import to_edge_index
 import data_utils.logistic_regression_eval as eval
-
+from data_utils.logistic_regression_eval import Multi_K_Shot_Evaluator
 
 def random_edge_mask(args, edge_index, device, num_nodes):
     num_edge = len(edge_index)

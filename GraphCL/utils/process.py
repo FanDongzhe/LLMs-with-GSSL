@@ -52,7 +52,7 @@ def sample_mask(idx, l):
 
 
 def load_data(dataset_str,device,feature_type,):
-    if dataset_str in ['cora','pubmed']:
+    if dataset_str in ['cora','pubmed'] or "amazon" in dataset_str:
         g = load_llm_feature_and_data(dataset_name=dataset_str,LLM_feat_seed=0,lm_model_name='microsoft/deberta-base',
                                feature_type=feature_type, use_dgl = True , device = device ).cpu()
         # 获取图数据
@@ -72,17 +72,17 @@ def load_data(dataset_str,device,feature_type,):
         one_hot_labels[np.arange(labels_np.size), labels_np] = 1
         labels = one_hot_labels
         # 获取训练、验证和测试节点的索引
-        idx_train = np.where(g.ndata['train_mask'])[0]
-        idx_val = np.where(g.ndata['val_mask'])[0]
-        idx_test = np.where(g.ndata['test_mask'])[0]
+        # idx_train = np.where(g.ndata['train_mask'])[0]
+        # idx_val = np.where(g.ndata['val_mask'])[0]
+        # idx_test = np.where(g.ndata['test_mask'])[0]
 
         # 获取节点数量、特征大小和类别数量
         nb_nodes = g.number_of_nodes()
         ft_size = features_.shape[1]
         nb_classes = g.ndata['label'].unique().size(0)
-        return adj, features, labels, idx_train, idx_val, idx_test, nb_nodes, ft_size, nb_classes
+        return adj, features, labels, nb_nodes, ft_size, nb_classes
 
-    if dataset_str == 'ogbn-arxiv':
+    elif dataset_str == 'ogbn-arxiv':
         g = load_llm_feature_and_data(dataset_name=dataset_str,LLM_feat_seed=0,lm_model_name='microsoft/deberta-base',
                                feature_type=feature_type, use_dgl = True , device = device ).cpu()
         
@@ -101,15 +101,17 @@ def load_data(dataset_str,device,feature_type,):
 
 
         # 获取训练、验证和测试节点的索引
-        idx_train = np.where(g.ndata['train_mask'])[0]
-        idx_val = np.where(g.ndata['val_mask'])[0]
-        idx_test = np.where(g.ndata['test_mask'])[0]
+        # idx_train = np.where(g.ndata['train_mask'])[0]
+        # idx_val = np.where(g.ndata['val_mask'])[0]
+        # idx_test = np.where(g.ndata['test_mask'])[0]
 
         # 获取节点数量、特征大小和类别数量
         nb_nodes = g.number_of_nodes()
         ft_size = features_.shape[1]
         nb_classes = g.ndata['label'].unique().size(0)
-        return adj,features,labels,idx_train, idx_val, idx_test, nb_nodes,ft_size,nb_classes
+        return adj,features,labels, nb_nodes,ft_size,nb_classes
+    else:
+        raise ValueError(dataset_str)
 
 def load_data_new(dataset_str):
     assert False

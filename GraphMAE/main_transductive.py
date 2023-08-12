@@ -17,6 +17,7 @@ sys.path.append("..")
 from graphmae.datasets.data_util import scale_feats
 from data_utils.load import load_llm_feature_and_data
 import data_utils.logistic_regression_eval as eval
+from data_utils.logistic_regression_eval import Multi_K_Shot_Evaluator
 from graphmae.models import build_model
 from graphmae.evaluation import node_classification_evaluation
 
@@ -78,6 +79,9 @@ def main(args):
     save_model = args.save_model
     logs = args.logging
     use_scheduler = args.scheduler
+    
+    if args.eval_multi_k:
+        multi_k_eval=Multi_K_Shot_Evaluator()
 
 
     graph = load_llm_feature_and_data(dataset_name=args.dataset,LLM_feat_seed=model_seeds[0],lm_model_name='microsoft/deberta-base',
@@ -137,17 +141,22 @@ def main(args):
             feat = model.embed(graph.to(device), x.to(device))
             in_feat = x.shape[1]
         
-        
-        final_acc , early_stp_acc = eval.fit_logistic_regression_new(features=feat,labels=graph.ndata['label'],data_random_seeds=args.data_seeds,dataset_name=args.dataset,device=device)
-        final_acc_list.extend(final_acc)
-        early_stp_acc_list.extend(early_stp_acc)
+        if args.eval_multi_k:
+            multi_k_eval.multi_k_fit_logistic_regression_new(features=feat,labels=graph.ndata['label'],data_random_seeds=args.data_seeds,dataset_name=args.dataset,device=device)
+        else:
+            final_acc , early_stp_acc = eval.fit_logistic_regression_new(features=feat,labels=graph.ndata['label'],data_random_seeds=args.data_seeds,dataset_name=args.dataset,device=device)
+            final_acc_list.extend(final_acc)
+            early_stp_acc_list.extend(early_stp_acc)
         if logger is not None:
             logger.finish()
 
-    final_acc, final_acc_std = np.mean(final_acc_list), np.std(final_acc_list)
-    estp_acc, estp_acc_std = np.mean(early_stp_acc_list), np.std(early_stp_acc_list)
-    print(f"# final_acc: {final_acc:.4f}±{final_acc_std:.4f}")
-    print(f"# early-stopping_acc: {estp_acc:.4f}±{estp_acc_std:.4f}")
+    if args.eval_multi_k:
+        multi_k_eval.save_csv_results(dataset_name=args.dataset,experience_name="GraphMAE",feature_type=args.feature_type)
+    else:
+        final_acc, final_acc_std = np.mean(final_acc_list), np.std(final_acc_list)
+        estp_acc, estp_acc_std = np.mean(early_stp_acc_list), np.std(early_stp_acc_list)
+        print(f"# final_acc: {final_acc:.4f}±{final_acc_std:.4f}")
+        print(f"# early-stopping_acc: {estp_acc:.4f}±{estp_acc_std:.4f}")
 
     # mean_score = final_acc
     # std_score = final_acc_std

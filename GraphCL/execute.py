@@ -68,7 +68,7 @@ for model_seed in args.model_seeds:
     torch.manual_seed(model_seed)
     torch.cuda.manual_seed(model_seed)
 
-    adj, features, labels, idx_train, idx_val, idx_test,nb_nodes,ft_size,nb_classes = process.load_data(dataset,device=device,feature_type=args.feature_type)
+    adj, features, labels,nb_nodes,ft_size,nb_classes = process.load_data(dataset,device=device,feature_type=args.feature_type)
     # adj, features, labels, idx_train, idx_val, idx_test,nb_nodes,ft_size = process.load_data(dataset,device=device,feature_type=args.feature_type)
 
     features = process.preprocess_features(features)
@@ -147,10 +147,10 @@ for model_seed in args.model_seeds:
         aug_adj1 = torch.FloatTensor(aug_adj1[np.newaxis])
         aug_adj2 = torch.FloatTensor(aug_adj2[np.newaxis])
 
-    labels = torch.FloatTensor(labels[np.newaxis])
-    idx_train = torch.LongTensor(idx_train)
-    idx_val = torch.LongTensor(idx_val)
-    idx_test = torch.LongTensor(idx_test)
+    # labels = torch.FloatTensor(labels[np.newaxis])
+    # idx_train = torch.LongTensor(idx_train)
+    # idx_val = torch.LongTensor(idx_val)
+    # idx_test = torch.LongTensor(idx_test)
 
 
 
@@ -172,10 +172,10 @@ for model_seed in args.model_seeds:
             aug_adj1 = aug_adj1.cuda()
             aug_adj2 = aug_adj2.cuda()
 
-        labels = labels.cuda()
-        idx_train = idx_train.cuda()
-        idx_val = idx_val.cuda()
-        idx_test = idx_test.cuda()
+        # labels = labels.cuda()
+        # idx_train = idx_train.cuda()
+        # idx_val = idx_val.cuda()
+        # idx_test = idx_test.cuda()
         #idx_test = idx_test.to(device)
 
     b_xent = nn.BCEWithLogitsLoss()

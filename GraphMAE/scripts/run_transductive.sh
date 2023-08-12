@@ -34,3 +34,4 @@ python main_transductive.py \
 	--linear_prob \
 	--scheduler \
 	--use_cfg \
+	--eval_multi_k
