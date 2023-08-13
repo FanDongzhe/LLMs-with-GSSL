@@ -19,18 +19,21 @@ import json
 import sys
 sys.path.append("..") 
 import data_utils.logistic_regression_eval as eval
+from data_utils.logistic_regression_eval import Multi_K_Shot_Evaluator
+
 parser = argparse.ArgumentParser("My DGI")
 
 parser.add_argument('--dataset',          type=str,           default="",                help='data')
 parser.add_argument('--aug_type',         type=str,           default="",                help='aug type: mask or edge')
 parser.add_argument('--drop_percent',     type=float,         default=0.1,               help='drop percent')
 parser.add_argument("--data_seeds", type=int, nargs="+", default=[0,1])
-parser.add_argument("--model_seeds", type=int, nargs="+", default=[0,1,2,3,4])
+parser.add_argument("--model_seeds", type=int, nargs="+", default=[0])
 parser.add_argument('--gpu',              type=int,           default=0,                 help='gpu')
 parser.add_argument('--save_name',        type=str,           default='try.pkl',                help='save ckpt name')
 parser.add_argument('--k_shot',        type=float,           default='5',                help='number of samples per class')
 parser.add_argument('--feature_type',        type=str,           default='TA',                help='feature_type')
 parser.add_argument('--logdir',        type=str,           default='./runs/cora',                help='dir to save results')
+parser.add_argument('--eval_multi_k',   action="store_true")
 
 args = parser.parse_args()
 
@@ -44,7 +47,9 @@ drop_percent = args.drop_percent
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
 
-
+if args.eval_multi_k:
+    multi_k_eval=Multi_K_Shot_Evaluator()
+    
 # training params
 batch_size = 1
 nb_epochs = 10000
@@ -233,15 +238,22 @@ for model_seed in args.model_seeds:
     final_acc,early_stp_acc = [],[]
     features_for_eval = embeds.squeeze()
 
-    final_acc, early_stp_acc = eval.fit_logistic_regression_new(features=features_for_eval, labels=labels_for_eval,
+    if args.eval_multi_k:
+        multi_k_eval.multi_k_fit_logistic_regression_new(features=features_for_eval, labels=labels_for_eval,
                                                                 data_random_seeds=args.data_seeds,
                                                                 dataset_name=args.dataset, device=device)
-    final_acc_list.extend(final_acc)
-    early_stp_acc_list.extend(early_stp_acc)
+    else:
+        final_acc, early_stp_acc = eval.fit_logistic_regression_new(features=features_for_eval, labels=labels_for_eval,
+                                                                data_random_seeds=args.data_seeds,
+                                                                dataset_name=args.dataset, device=device)
+        final_acc_list.extend(final_acc)
+        early_stp_acc_list.extend(early_stp_acc)
 
-
-final_acc, final_acc_std = np.mean(final_acc_list), np.std(final_acc_list)
-estp_acc, estp_acc_std = np.mean(early_stp_acc_list), np.std(early_stp_acc_list)
-print(f"# final_acc: {final_acc:.4f}±{final_acc_std:.4f}")
-print(f"# early-stopping_acc: {estp_acc:.4f}±{estp_acc_std:.4f}")
+if args.eval_multi_k:
+    multi_k_eval.save_csv_results(dataset_name=args.dataset,experience_name="GraphCL",feature_type=args.feature_type)
+else:
+    final_acc, final_acc_std = np.mean(final_acc_list), np.std(final_acc_list)
+    estp_acc, estp_acc_std = np.mean(early_stp_acc_list), np.std(early_stp_acc_list)
+    print(f"# final_acc: {final_acc:.4f}±{final_acc_std:.4f}")
+    print(f"# early-stopping_acc: {estp_acc:.4f}±{estp_acc_std:.4f}")
 

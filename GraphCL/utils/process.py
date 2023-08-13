@@ -88,8 +88,11 @@ def load_data(dataset_str,device,feature_type,):
         
         # split_idx = dataset.get_idx_split()
         labels = g.ndata['label']  # 这是一个带有节点属性预测标签的图
-        labels = labels[:, 0]  # 取出标签
-
+        labels_np = labels.numpy()
+        nb_classes = labels_np.max() + 1
+        one_hot_labels = np.zeros((labels_np.size, nb_classes))
+        one_hot_labels[np.arange(labels_np.size), labels_np] = 1
+        labels = one_hot_labels
         # 将DGL图转换为CSR格式的邻接矩阵
         # adjacency = g.adjacency_matrix_scipy(return_edge_ids=False)
         adjacency = g.adj_external(scipy_fmt='csr')

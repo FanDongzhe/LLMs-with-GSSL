@@ -131,7 +131,7 @@ def aug_subgraph(input_fea, input_adj, drop_percent=0.2):
         
         all_neighbor_list += torch.nonzero(input_adj[sub_node_id_list[i]], as_tuple=False).squeeze(1).tolist()
         
-        all_neighbor_list = list(set(all_neighbor_list))
+        all_neighbor_list = list(set(all_neighbor_list)) # remove duplicate 
         new_neighbor_list = [n for n in all_neighbor_list if not n in sub_node_id_list]
         if len(new_neighbor_list) != 0:
             new_node = random.sample(new_neighbor_list, 1)[0]

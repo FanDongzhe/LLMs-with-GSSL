@@ -27,7 +27,7 @@ sys.path.append("..") # TODO merge TAPE into current repo
 from data_utils.load import load_llm_feature_and_data
 from torch_geometric.utils.sparse import to_edge_index
 import data_utils.logistic_regression_eval as eval
-from data_utils.logistic_regression_eval import Multi_K_Shot_Evaluator
+from data_utils.logistic_regression_eval import Multi_K_Shot_Evaluator  
 
 def random_edge_mask(args, edge_index, device, num_nodes):
     num_edge = len(edge_index)
@@ -208,10 +208,14 @@ def main():
     parser.add_argument('--patience', type=int, default=50,
                         help='Use attribute or not')
     parser.add_argument('--mask_ratio', type=float, default=0.8)
-    parser.add_argument("--feature_type", type=str, default="TA")
+    parser.add_argument("--feature_type", type=str, required=True)
+    parser.add_argument("--eval_multi_k", action="store_true")
     parser.add_argument("--logdir", type=str, default='runs/')
     args = parser.parse_args()
     print(args)
+
+    if args.eval_multi_k:
+        multi_k_eval=Multi_K_Shot_Evaluator()
 
     device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
     device = torch.device(device)
@@ -360,30 +364,33 @@ def main():
 
         
         for i, feature_tmp in enumerate(feature_list):
-            # f1_mic_svm, f1_mac_svm, acc_svm = test_classify(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy(),
-            #                                                 args)
-            # svm_result_final[run, i] = acc_svm
-            # print('**** SVM test acc on Run {}/{} for {} is F1-mic={} F1-mac={} acc={}'
-            #       .format(run + 1, args.runs, result_dict[i], f1_mic_svm, f1_mac_svm, acc_svm))
             
-            #这部分需要测试一下，保证输入的feature_tmp是一个二维numpy数组，labels是一个一维numpy数组（而不是one hot编码）
-            #accs = eval.fit_logistic_regression(feature_tmp.data.cpu().numpy(), labels.data.cpu().numpy(),args.dataset,args.seeds)
-            final_acc,early_stp_acc = eval.fit_logistic_regression_new(features=feature_tmp,labels=labels,
-                                                                       dataset_name=args.dataset,data_random_seeds=args.data_seeds,
-                                                                       device=device
-                                                                       )
-            final_acc_list.append(final_acc)
-            early_stp_acc_list.append(early_stp_acc)
-            #打印accs数组的均值和方差
-        print('Test acc:[{:.4f}]'.format(np.mean(final_acc)))
-        print('Test std:[{:.4f}]'.format(np.std(final_acc)))                                        
+            if args.eval_multi_k:
+                multi_k_eval.multi_k_fit_logistic_regression_new(features=feature_tmp,labels=labels,
+                                                                        dataset_name=args.dataset,data_random_seeds=args.data_seeds,
+                                                                        device=device
+                                                                        )
+            else:
+                final_acc,early_stp_acc = eval.fit_logistic_regression_new(features=feature_tmp,labels=labels,
+                                                                        dataset_name=args.dataset,data_random_seeds=args.data_seeds,
+                                                                        device=device
+                                                                        )
+                final_acc_list.append(final_acc)
+                early_stp_acc_list.append(early_stp_acc)
             
-    final_acc, final_acc_std = np.mean(final_acc_list), np.std(final_acc_list)
-    estp_acc, estp_acc_std = np.mean(early_stp_acc_list), np.std(early_stp_acc_list)
-    print(f"# final_acc: {final_acc:.4f}±{final_acc_std:.4f}")
-    print(f"# early-stopping_acc: {estp_acc:.4f}±{estp_acc_std:.4f}")
+
+        #     #打印accs数组的均值和方差
+        # print('Test acc:[{:.4f}]'.format(np.mean(final_acc)))
+        # print('Test std:[{:.4f}]'.format(np.std(final_acc)))                                        
+    if args.eval_multi_k:
+        multi_k_eval.save_csv_results(dataset_name=args.dataset,experience_name="S2GAE",feature_type=args.feature_type)
+    else:
+        final_acc, final_acc_std = np.mean(final_acc_list), np.std(final_acc_list)
+        estp_acc, estp_acc_std = np.mean(early_stp_acc_list), np.std(early_stp_acc_list)
+        print(f"# final_acc: {final_acc:.4f}±{final_acc_std:.4f}")
+        print(f"# early-stopping_acc: {estp_acc:.4f}±{estp_acc_std:.4f}")
     
-    svm_result_final = np.array(svm_result_final)
+    # svm_result_final = np.array(svm_result_final)
 
     if osp.exists(save_path_model):
         os.remove(save_path_model)
