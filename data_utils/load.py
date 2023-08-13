@@ -68,10 +68,10 @@ def load_data(dataset, use_dgl=False, use_text=False, use_gpt=False, seed=0):
                 text.append(content)
     else:
         data, text = get_raw_text(use_text=True, seed=seed)
-
+    data.text = text
     return data, text
 
-def load_amazon_data(dataset_name, feature_type, use_dgl):
+def load_amazon_data(dataset_name, feature_type, use_dgl, use_text=False):
     assert feature_type in ["BOW","W2V"], f"only BOW and W2V two kind of features in amazon data"
     if dataset_name == 'amazon-computers':
         '''
@@ -115,7 +115,18 @@ def load_amazon_data(dataset_name, feature_type, use_dgl):
     
     if isinstance(data.x,torch.LongTensor):
         data.x=data.x.float() # special preprocess for amazon-photo-BOW
-    
+
+    if use_text:
+        if dataset_name == 'amazon-computers':
+            file_path = "./dataset/computers/Computers.csv"
+        elif dataset_name == 'amazon-history':
+            file_path = "./dataset/history/History_Final.csv"
+        elif dataset_name == 'amazon-photo':
+            file_path = "./dataset/photo/Photo_Final.csv"
+        df = pd.read_csv(file_path)
+        text = list(df["text"])
+        data.text = text
+        
     if use_dgl:
         g = dgl.DGLGraph()
         edge_index = data.edge_index
@@ -128,7 +139,7 @@ def load_amazon_data(dataset_name, feature_type, use_dgl):
     return data
         
 def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_feat_seed = 0, lm_model_name="microsoft/deberta-base",
-                              device = 0 , sclae_feat = False):
+                              device = 0 , sclae_feat = False, use_text = False):
         '''
         args:
             feature_type: TA or E or P or Bow or Wov or ogb
@@ -144,12 +155,20 @@ def load_llm_feature_and_data(dataset_name, feature_type, use_dgl = False, LLM_f
         
         seed = LLM_feat_seed
         # ! Load data from ogb
-        if dataset_name in ('cora', 'pubmed', 'ogbn-arxiv', 'Cora', 'Pubmed','arxiv'):                
-            data = load_data(dataset_name, use_dgl=use_dgl, use_text=False)
-        elif "amazon" in dataset_name:
-            data = load_amazon_data(dataset_name, feature_type.upper(), use_dgl)
+        if not use_text:
+            if dataset_name in ('cora', 'pubmed', 'ogbn-arxiv', 'Cora', 'Pubmed','arxiv'):
+                data = load_data(dataset_name, use_dgl=use_dgl, use_text=False)
+            elif "amazon" in dataset_name:
+                data = load_amazon_data(dataset_name, feature_type.upper(), use_dgl)
+            else:
+                raise ValueError(dataset_name)
         else:
-            raise ValueError(dataset_name) 
+            if dataset_name in ('cora', 'pubmed', 'ogbn-arxiv', 'Cora', 'Pubmed', 'arxiv'):
+                data = load_data(dataset_name, use_dgl=use_dgl, use_text=use_text)
+            elif "amazon" in dataset_name:
+                data = load_amazon_data(dataset_name, feature_type.upper(), use_dgl, use_text)
+            else:
+                raise ValueError(dataset_name)
 
 
         if  use_dgl:
