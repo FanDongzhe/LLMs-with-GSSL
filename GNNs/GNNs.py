@@ -67,7 +67,7 @@ def split_data_k(y, k_shot=20, data_random_seed=0):
     train_indices = []
 
     for i in range(num_classes):
-        class_indices = np.where(y == i)[0]
+        class_indices = np.where(y.cpu() == i)[0]
         if len(class_indices) < k_shot:
             raise ValueError(f"Not enough samples in class {i} for k-shot learning")
         class_train_indices = np.random.choice(class_indices, k_shot, replace=False)
@@ -78,7 +78,7 @@ def split_data_k(y, k_shot=20, data_random_seed=0):
     val_indices = []
 
     for i in range(num_classes):
-        class_indices = np.where(y == i)[0]
+        class_indices = np.where(y.cpu() == i)[0]
         class_indices = np.setdiff1d(class_indices, train_indices)  # remove already chosen train_indices
         class_val_indices = np.random.choice(class_indices, 30, replace=False)
         val_indices.extend(class_val_indices)
@@ -116,14 +116,12 @@ def train(model, data, device, dataseed):
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     loss_function = torch.nn.CrossEntropyLoss().to(device)
 
-    if args.dataset in ('Cora', 'PubMed', 'cora', 'pubmed'):
-        train_mask, val_mask, test_mask = split_data_k(data.y, k_shot=args.k_shot, data_random_seed=dataseed)
-    else:
-        train_mask, val_mask, test_mask = split_data_s(data.y, data_random_seed=dataseed)
+    #if args.dataset in ('Cora', 'PubMed', 'cora', 'pubmed'):
+    train_mask, val_mask, test_mask = split_data_k(data.y, k_shot=args.k_shot, data_random_seed=dataseed)
+    #else:
+    #    train_mask, val_mask, test_mask = split_data_s(data.y, data_random_seed=dataseed)
 
     best_val_accuracy = 0.0
-    epochs_without_improvement = 0  # Initialize counter for early stopping
-    early_stop_threshold = 50  # Threshold for early stopping
 
     model.train()
 
@@ -142,14 +140,6 @@ def train(model, data, device, dataseed):
         if val_accuracy > best_val_accuracy:
             best_val_accuracy = val_accuracy
             best_model = model.state_dict()  # Save the model parameters
-            epochs_without_improvement = 0  # Reset the counter
-        else:
-            epochs_without_improvement += 1  # Increment the counter
-
-        # Early stopping
-        if epochs_without_improvement >= early_stop_threshold:
-            print("Early stopping after {} epochs without improvement.".format(early_stop_threshold))
-            break
 
     # Load the best model for testing
     model.load_state_dict(best_model)
@@ -227,17 +217,17 @@ def save_args_to_file(args, results, output_folder="configs"):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Graph Neural Network Training")
-    parser.add_argument('--dataset', type=str, default='cora', help="Name of the dataset")
+    parser.add_argument('--dataset', type=str, default='amazon-photo', help="Name of the dataset")
     parser.add_argument('--feature_type', type=str, default='ogb', help="Feature type for dataset")
-    parser.add_argument('--device', type=int, default=1, help="Device to use for training")
+    parser.add_argument('--device', type=int, default=0, help="Device to use for training")
     parser.add_argument('--model_type', type=str, default='GCN', help="Language model name")
     parser.add_argument('--num_layers', type=int, default=2, help="Number of layers in GCN")
     parser.add_argument('--dim_hidden', type=int, default=64, help="Hidden dimension in GCN")
     parser.add_argument('--dropout', type=float, default=0.8, help="Dropout probability")
     parser.add_argument('--lr', type=float, default=0.01, help="Learning rate")
-    parser.add_argument('--weight_decay', type=float, default=1e-3, help="Weight decay for Adam optimizer")
-    parser.add_argument('--epochs', type=int, default=200, help="Number of epochs")
-    parser.add_argument('--k_shot', type=int, default=20, help="Number of epochs")
+    parser.add_argument('--weight_decay', type=float, default=0.005, help="Weight decay for Adam optimizer")
+    parser.add_argument('--epochs', type=int, default=500, help="Number of epochs")
+    parser.add_argument('--k_shot', type=int, default=50, help="Number of epochs")
     args = parser.parse_args()
     results = main(args)
     save_args_to_file(args, results)
